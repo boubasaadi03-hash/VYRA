@@ -12,66 +12,191 @@ import {
 
 const { width, height } = Dimensions.get('window');
 
+const videos = [
+  {
+    id: 1,
+    user: 'vyra_creator',
+    name: 'VYRA Creator',
+    description: 'Welcome to VYRA! 🌍',
+    music: 'Original sound',
+    color: '#30205B',
+  },
+  {
+    id: 2,
+    user: 'world_traveler',
+    name: 'World Traveler',
+    description: 'Discover the world with VYRA ✈️',
+    music: 'Travel vibes',
+    color: '#164B65',
+  },
+  {
+    id: 3,
+    user: 'daily_life',
+    name: 'Daily Life',
+    description: 'Share your best moments ❤️',
+    music: 'Daily moments',
+    color: '#642D48',
+  },
+];
+
 export default function App() {
-  const [likes, setLikes] = useState(1250);
-  const [liked, setLiked] = useState(false);
+  const [activeTab, setActiveTab] = useState('Home');
+  const [following, setFollowing] = useState({});
+  const [likes, setLikes] = useState({});
+  const [activeFeed, setActiveFeed] = useState('For You');
 
-  return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#080808" />
+  const toggleLike = (id) => {
+    setLikes(prev => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
 
-      <View style={styles.header}>
+  const toggleFollow = (id) => {
+    setFollowing(prev => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const renderVideo = (video) => (
+    <View
+      key={video.id}
+      style={[styles.video, { backgroundColor: video.color }]}
+    >
+      <View style={styles.videoTop}>
         <Text style={styles.logo}>VYRA</Text>
-        <Text style={styles.subtitle}>Discover the world</Text>
-      </View>
-
-      <ScrollView>
-        <View style={styles.video}>
-          <Text style={styles.play}>▶</Text>
-          <Text style={styles.videoText}>VYRA VIDEO FEED</Text>
-          <Text style={styles.coming}>Your world starts here</Text>
-        </View>
-
-        <View style={styles.profile}>
-          <Text style={styles.username}>@vyra_user</Text>
-          <Text style={styles.description}>
-            Welcome to VYRA 🌍
-            {'\n'}Meet people. Share moments. Make friends.
-          </Text>
-        </View>
-
-        <View style={styles.actions}>
+        <View style={styles.feedButtons}>
           <TouchableOpacity
-            onPress={() => {
-              setLiked(!liked);
-              setLikes(liked ? likes - 1 : likes + 1);
-            }}
+            onPress={() => setActiveFeed('Following')}
           >
-            <Text style={styles.action}>
-              {liked ? '❤️' : '🤍'} {likes}
+            <Text style={[
+              styles.feedText,
+              activeFeed === 'Following' && styles.selectedFeed
+            ]}>
+              Following
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity>
-            <Text style={styles.action}>💬 Chat</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity>
-            <Text style={styles.action}>↗ Share</Text>
+          <TouchableOpacity
+            onPress={() => setActiveFeed('For You')}
+          >
+            <Text style={[
+              styles.feedText,
+              activeFeed === 'For You' && styles.selectedFeed
+            ]}>
+              For You
+            </Text>
           </TouchableOpacity>
         </View>
+      </View>
 
-        <TouchableOpacity style={styles.button}>
-          <Text style={styles.buttonText}>EXPLORE VYRA</Text>
+      <View style={styles.centerContent}>
+        <Text style={styles.videoTitle}>VYRA</Text>
+        <Text style={styles.videoSubtitle}>
+          Your world. Your moments.
+        </Text>
+      </View>
+
+      <View style={styles.videoInfo}>
+        <Text style={styles.username}>@{video.user}</Text>
+        <Text style={styles.description}>
+          {video.description}
+        </Text>
+        <Text style={styles.music}>♫ {video.music}</Text>
+      </View>
+
+      <View style={styles.actions}>
+        <TouchableOpacity
+          style={styles.action}
+          onPress={() => toggleLike(video.id)}
+        >
+          <Text style={styles.actionIcon}>
+            {likes[video.id] ? '❤️' : '🤍'}
+          </Text>
+          <Text style={styles.actionText}>
+            {likes[video.id] ? 'Liked' : 'Like'}
+          </Text>
         </TouchableOpacity>
-      </ScrollView>
 
-      <View style={styles.bottom}>
-        <Text style={styles.nav}>🏠 Home</Text>
-        <Text style={styles.nav}>🔍 Discover</Text>
-        <Text style={styles.nav}>➕ Create</Text>
-        <Text style={styles.nav}>💬 Messages</Text>
-        <Text style={styles.nav}>👤 Profile</Text>
+        <TouchableOpacity style={styles.action}>
+          <Text style={styles.actionIcon}>💬</Text>
+          <Text style={styles.actionText}>Comment</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.action}>
+          <Text style={styles.actionIcon}>↗️</Text>
+          <Text style={styles.actionText}>Share</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.action}
+          onPress={() => toggleFollow(video.id)}
+        >
+          <Text style={styles.actionIcon}>＋</Text>
+          <Text style={styles.actionText}>
+            {following[video.id] ? 'Following' : 'Follow'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="#080808"
+      />
+
+      {activeTab === 'Home' && (
+        <ScrollView
+          pagingEnabled
+          showsVerticalScrollIndicator={false}
+        >
+          {videos.map(renderVideo)}
+        </ScrollView>
+      )}
+
+      {activeTab !== 'Home' && (
+        <View style={styles.otherScreen}>
+          <Text style={styles.logo}>VYRA</Text>
+          <Text style={styles.screenTitle}>
+            {activeTab}
+          </Text>
+          <Text style={styles.comingSoon}>
+            Coming soon...
+          </Text>
+        </View>
+      )}
+
+      <View style={styles.bottomBar}>
+        {[
+          ['Home', '⌂'],
+          ['Discover', '⌕'],
+          ['Create', '＋'],
+          ['Messages', '✉'],
+          ['Profile', '◉'],
+        ].map(([tab, icon]) => (
+          <TouchableOpacity
+            key={tab}
+            style={styles.navItem}
+            onPress={() => setActiveTab(tab)}
+          >
+            <Text style={[
+              styles.navIcon,
+              activeTab === tab && styles.activeNav
+            ]}>
+              {icon}
+            </Text>
+            <Text style={[
+              styles.navText,
+              activeTab === tab && styles.activeNav
+            ]}>
+              {tab}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
     </View>
   );
@@ -82,85 +207,159 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#080808',
   },
-  header: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  logo: {
-    color: '#B85CFF',
-    fontSize: 34,
-    fontWeight: 'bold',
-    letterSpacing: 5,
-  },
-  subtitle: {
-    color: '#999',
-    fontSize: 12,
-  },
+
   video: {
-    width: width - 24,
-    height: height * 0.52,
-    marginHorizontal: 12,
-    backgroundColor: '#24202D',
-    borderRadius: 18,
+    width: width,
+    height: height - 85,
+    position: 'relative',
+  },
+
+  videoTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 15,
+  },
+
+  logo: {
+    color: '#A855F7',
+    fontSize: 27,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+
+  feedButtons: {
+    flexDirection: 'row',
+    gap: 18,
+  },
+
+  feedText: {
+    color: '#AAAAAA',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  selectedFeed: {
+    color: '#FFFFFF',
+    borderBottomWidth: 2,
+    borderBottomColor: '#A855F7',
+    paddingBottom: 5,
+  },
+
+  centerContent: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  play: {
+
+  videoTitle: {
     color: '#FFFFFF',
     fontSize: 55,
+    fontWeight: '900',
+    letterSpacing: 8,
   },
-  videoText: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: 15,
+
+  videoSubtitle: {
+    color: '#DDDDDD',
+    fontSize: 15,
+    marginTop: 10,
   },
-  coming: {
-    color: '#B85CFF',
-    marginTop: 8,
+
+  videoInfo: {
+    position: 'absolute',
+    bottom: 35,
+    left: 18,
+    width: width - 105,
   },
-  profile: {
-    padding: 18,
-  },
+
   username: {
     color: '#FFFFFF',
-    fontSize: 19,
+    fontSize: 17,
     fontWeight: 'bold',
+    marginBottom: 8,
   },
+
   description: {
-    color: '#BBBBBB',
-    marginTop: 8,
-    lineHeight: 23,
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 15,
-  },
-  action: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 14,
+    marginBottom: 10,
   },
-  button: {
-    backgroundColor: '#A94DFF',
-    margin: 18,
-    padding: 16,
-    borderRadius: 30,
+
+  music: {
+    color: '#EEEEEE',
+    fontSize: 12,
+  },
+
+  actions: {
+    position: 'absolute',
+    right: 12,
+    bottom: 35,
+    alignItems: 'center',
+    gap: 22,
+  },
+
+  action: {
     alignItems: 'center',
   },
-  buttonText: {
+
+  actionIcon: {
     color: '#FFFFFF',
-    fontWeight: 'bold',
+    fontSize: 27,
   },
-  bottom: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#333',
-  },
-  nav: {
+
+  actionText: {
     color: '#FFFFFF',
     fontSize: 10,
+    marginTop: 4,
+  },
+
+  bottomBar: {
+    height: 60,
+    backgroundColor: '#080808',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    borderTopWidth: 0.5,
+    borderTopColor: '#333333',
+  },
+
+  navItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  navIcon: {
+    color: '#888888',
+    fontSize: 23,
+  },
+
+  navText: {
+    color: '#888888',
+    fontSize: 10,
+    marginTop: 3,
+  },
+
+  activeNav: {
+    color: '#A855F7',
+  },
+
+  otherScreen: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  screenTitle: {
+    color: '#FFFFFF',
+    fontSize: 30,
+    fontWeight: 'bold',
+    marginTop: 25,
+  },
+
+  comingSoon: {
+    color: '#999999',
+    marginTop: 12,
+    fontSize: 15,
   },
 });
