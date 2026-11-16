@@ -1,0 +1,10 @@
+
+{
+  "expo": {
+    "name": "VYRA",
+    "slug": "vyra",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark"
+  }
+}
