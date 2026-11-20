@@ -39,7 +39,7 @@ const videos = [
   },
 ];
 
-export default function App() {
+function AppContent() {
   const [activeTab, setActiveTab] = useState('Home');
   const [following, setFollowing] = useState({});
   const [likes, setLikes] = useState({});
