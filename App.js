@@ -62,7 +62,7 @@ function AppContent() {
 
   const renderVideo = (video) => (
     <View
-      key={video.id}
+      key={}style={[styles.video, { backgroundColor: video.color, height: pageHeight }]}
       style={[styles.video, { backgroundColor: video.color }]}
     >
       <View style={styles.videoTop}>
