@@ -146,28 +146,86 @@ export default function App() {
     <View style={styles.container}>
       <StatusBar
         barStyle="light-content"
-        backgroundColor="#080808"
-      />
-
-      {activeTab === 'Home' && (
-        <ScrollView
-          pagingEnabled
-          showsVerticalScrollIndicator={false}
-        >
-          {videos.map(renderVideo)}
-        </ScrollView>
-      )}
-
+        backgroundColor="#080808
+      
+{activeTab !== 'Home' && (
       {activeTab !== 'Home' && (
-        <View style={styles.otherScreen}>
+        <ScrollView style={{ flex: 1, padding: 22 }}>
           <Text style={styles.logo}>VYRA</Text>
-          <Text style={styles.screenTitle}>
-            {activeTab}
-          </Text>
-          <Text style={styles.comingSoon}>
-            Coming soon...
-          </Text>
-        </View>
+
+          {activeTab === 'Profile' ? (
+            <View style={{ alignItems: 'center', marginTop: 45 }}>
+              <Text style={{ fontSize: 65 }}>👤</Text>
+              <Text style={{ color: 'white', fontSize: 25, fontWeight: 'bold' }}>
+                VYRA Creator
+              </Text>
+              <Text style={{ color: '#AAAAAA', marginTop: 8 }}>
+                @vyra_creator
+              </Text>
+              <Text style={{ color: 'white', marginTop: 25 }}>
+                Your world. Your moments. 🌍
+              </Text>
+              <Text style={{ color: '#A855F7', marginTop: 30, fontSize: 18 }}>
+                0 Posts     0 Followers     0 Following
+              </Text>
+              <Text style={{ color: 'white', marginTop: 35 }}>
+                My Videos
+              </Text>
+              <Text style={{ color: '#999999', marginTop: 15 }}>
+                Your videos will appear here.
+              </Text>
+            </View>
+          ) : activeTab === 'Discover' ? (
+            <View style={{ marginTop: 35 }}>
+              <Text style={{ color: 'white', fontSize: 26, fontWeight: 'bold' }}>
+                Discover 🌍
+              </Text>
+              <Text style={{ color: '#AAAAAA', marginTop: 15 }}>
+                Explore people around the world
+              </Text>
+              {['World Traveler', 'Daily Life', 'VYRA Creator'].map((name, i) => (
+                <View key={i} style={{ backgroundColor: '#202020', padding: 20, marginTop: 15, borderRadius: 12 }}>
+                  <Text style={{ color: 'white', fontSize: 18 }}>
+                    👤 {name}
+                  </Text>
+                  <Text style={{ color: '#A855F7', marginTop: 8 }}>
+                    Discover creator
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : activeTab === 'Messages' ? (
+            <View style={{ marginTop: 35 }}>
+              <Text style={{ color: 'white', fontSize: 26, fontWeight: 'bold' }}>
+                Messages ✉
+              </Text>
+              <Text style={{ color: '#AAAAAA', marginTop: 15 }}>
+                Your conversations
+              </Text>
+              <Text style={{ color: 'white', marginTop: 35 }}>
+                No messages yet.
+              </Text>
+              <Text style={{ color: '#999999', marginTop: 10 }}>
+                Start connecting with people on VYRA.
+              </Text>
+            </View>
+          ) : activeTab === 'Create' ? (
+            <View style={{ alignItems: 'center', marginTop: 70 }}>
+              <Text style={{ color: '#A855F7', fontSize: 28, fontWeight: 'bold' }}>
+                Create on VYRA
+              </Text>
+              <Text style={{ color: 'white', fontSize: 55, marginTop: 35 }}>
+                ＋
+              </Text>
+              <Text style={{ color: 'white', fontSize: 18, marginTop: 20 }}>
+                Share your moments
+              </Text>
+              <Text style={{ color: '#999999', marginTop: 12 }}>
+                Video upload will be connected next.
+              </Text>
+            </View>
+          ) : null}
+        </ScrollView>
       )}
 
       <View style={styles.bottomBar}>
