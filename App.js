@@ -146,13 +146,36 @@ export default function App() {
     <View style={styles.container}>
       <StatusBar
         barStyle="light-content"
-        backgroundColor="#080808
-      
-{activeTab !== 'Home' && (
-      {activeTab !== 'Home' && (
+        backgroundColor="#080808"
+    />
+
+    {activeTab === 'Home' && (
+      <ScrollView
+        pagingEnabled
+        showsVerticalScrollIndicator={false}
+      >
+        {videos.map(renderVideo)}
+      </ScrollView>
+    )}
+
+    {activeTab !== 'Home' && (
+      <ScrollView style={{ flex: 1, padding: 22 }}>
         <ScrollView style={{ flex: 1, padding: 22 }}>
           <Text style={styles.logo}>VYRA</Text>
+backgroundColor="#080808"
+    />
 
+    {activeTab === 'Home' && (
+      <ScrollView
+        pagingEnabled
+        showsVerticalScrollIndicator={false}
+      >
+        {videos.map(renderVideo)}
+      </ScrollView>
+    )}
+
+    {activeTab !== 'Home' && (
+      <ScrollView style={{ flex: 1, padding: 22 }}>
           {activeTab === 'Profile' ? (
             <View style={{ alignItems: 'center', marginTop: 45 }}>
               <Text style={{ fontSize: 65 }}>👤</Text>
