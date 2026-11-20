@@ -150,7 +150,10 @@ function AppContent() {
         backgroundColor="#080808"
     />
 
-    {activeTab === 'Home' && (
+    style={{ flex: 1 }}
+        onLayout={(e) => setPageHeight(e.nativeEvent.layout.height)}
+        pagingEnabled
+        decelerationRate="fast"
       <ScrollView
         pagingEnabled
         showsVerticalScrollIndicator={false}
