@@ -436,3 +436,10 @@ const styles = StyleSheet.create({
   },
 });
 <View style={styles.bottomBar}>
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
+    </SafeAreaProvider>
+  );
+}
