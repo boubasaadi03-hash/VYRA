@@ -44,7 +44,8 @@ function AppContent() {
   const [following, setFollowing] = useState({});
   const [likes, setLikes] = useState({});
   const [activeFeed, setActiveFeed] = useState('For You');
-
+ const insets = useSafeAreaInsets();
+  const [pageHeight, setPageHeight] = useState(height - 85);
   const toggleLike = (id) => {
     setLikes(prev => ({
       ...prev,
