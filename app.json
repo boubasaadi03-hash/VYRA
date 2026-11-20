@@ -2,9 +2,17 @@
 {
   "expo": {
     "name": "VYRA",
-    "slug": "vyra",
+    "slug": "appvyra",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "dark"
+    "userInterfaceStyle": "dark",
+    "android": {
+      "package": "com.saadi.vyra"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ضع-هنا-Project-ID"
+      }
+    }
   }
 }
