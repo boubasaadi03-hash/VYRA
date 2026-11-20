@@ -10,6 +10,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+
 const { width, height } = Dimensions.get('window');
 
 const videos = [
@@ -44,17 +45,18 @@ function AppContent() {
   const [following, setFollowing] = useState({});
   const [likes, setLikes] = useState({});
   const [activeFeed, setActiveFeed] = useState('For You');
- const insets = useSafeAreaInsets();
   const [pageHeight, setPageHeight] = useState(height - 85);
+  const insets = useSafeAreaInsets();
+
   const toggleLike = (id) => {
-    setLikes(prev => ({
+    setLikes((prev) => ({
       ...prev,
       [id]: !prev[id],
     }));
   };
 
   const toggleFollow = (id) => {
-    setFollowing(prev => ({
+    setFollowing((prev) => ({
       ...prev,
       [id]: !prev[id],
     }));
@@ -62,30 +64,30 @@ function AppContent() {
 
   const renderVideo = (video) => (
     <View
-      key={}style={[styles.video, { backgroundColor: video.color, height: pageHeight }]}
-      style={[styles.video, { backgroundColor: video.color }]}
+      key={video.id}
+      style={[styles.video, { backgroundColor: video.color, height: pageHeight }]}
     >
       <View style={styles.videoTop}>
         <Text style={styles.logo}>VYRA</Text>
         <View style={styles.feedButtons}>
-          <TouchableOpacity
-            onPress={() => setActiveFeed('Following')}
-          >
-            <Text style={[
-              styles.feedText,
-              activeFeed === 'Following' && styles.selectedFeed
-            ]}>
+          <TouchableOpacity onPress={() => setActiveFeed('Following')}>
+            <Text
+              style={[
+                styles.feedText,
+                activeFeed === 'Following' && styles.selectedFeed,
+              ]}
+            >
               Following
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() => setActiveFeed('For You')}
-          >
-            <Text style={[
-              styles.feedText,
-              activeFeed === 'For You' && styles.selectedFeed
-            ]}>
+          <TouchableOpacity onPress={() => setActiveFeed('For You')}>
+            <Text
+              style={[
+                styles.feedText,
+                activeFeed === 'For You' && styles.selectedFeed,
+              ]}
+            >
               For You
             </Text>
           </TouchableOpacity>
@@ -134,7 +136,7 @@ function AppContent() {
           style={styles.action}
           onPress={() => toggleFollow(video.id)}
         >
-          <Text style={styles.actionIcon}>＋</Text>
+          <Text style={styles.actionIcon}>+</Text>
           <Text style={styles.actionText}>
             {following[video.id] ? 'Following' : 'Follow'}
           </Text>
@@ -143,30 +145,26 @@ function AppContent() {
     </View>
   );
 
-  <View style={[styles.container, { paddingTop: insets.top }]}>
-    <View style={styles.container}>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor="#080808"
-    />
+  return (
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <StatusBar barStyle="light-content" />
 
-    style={{ flex: 1 }}
-        onLayout={(e) => setPageHeight(e.nativeEvent.layout.height)}
-        pagingEnabled
-        decelerationRate="fast"
-      <ScrollView
-        pagingEnabled
-        showsVerticalScrollIndicator={false}
-      >
-        {videos.map(renderVideo)}
-      </ScrollView>
-    )}
+      {activeTab === 'Home' && (
+        <ScrollView
+          style={{ flex: 1 }}
+          onLayout={(e) => setPageHeight(e.nativeEvent.layout.height)}
+          pagingEnabled
+          decelerationRate="fast"
+          showsVerticalScrollIndicator={false}
+        >
+          {videos.map(renderVideo)}
+        </ScrollView>
+      )}
 
-    
+      {activeTab !== 'Home' && (
+        <ScrollView style={{ flex: 1, padding: 22 }}>
+          <Text style={styles.logo}>VYRA</Text>
 
-    {activeTab !== 'Home' && (
-      <ScrollView style={{ flex: 1, padding: 22 }}>
-<Text style={styles.logo}>VYRA</Text>
           {activeTab === 'Profile' ? (
             <View style={{ alignItems: 'center', marginTop: 45 }}>
               <Text style={{ fontSize: 65 }}>👤</Text>
@@ -198,7 +196,15 @@ function AppContent() {
                 Explore people around the world
               </Text>
               {['World Traveler', 'Daily Life', 'VYRA Creator'].map((name, i) => (
-                <View key={i} style={{ backgroundColor: '#202020', padding: 20, marginTop: 15, borderRadius: 12 }}>
+                <View
+                  key={i}
+                  style={{
+                    backgroundColor: '#202020',
+                    padding: 20,
+                    marginTop: 15,
+                    borderRadius: 12,
+                  }}
+                >
                   <Text style={{ color: 'white', fontSize: 18 }}>
                     👤 {name}
                   </Text>
@@ -211,7 +217,7 @@ function AppContent() {
           ) : activeTab === 'Messages' ? (
             <View style={{ marginTop: 35 }}>
               <Text style={{ color: 'white', fontSize: 26, fontWeight: 'bold' }}>
-                Messages ✉
+                Messages ✉️
               </Text>
               <Text style={{ color: '#AAAAAA', marginTop: 15 }}>
                 Your conversations
@@ -229,7 +235,7 @@ function AppContent() {
                 Create on VYRA
               </Text>
               <Text style={{ color: 'white', fontSize: 55, marginTop: 35 }}>
-                ＋
+                +
               </Text>
               <Text style={{ color: 'white', fontSize: 18, marginTop: 20 }}>
                 Share your moments
@@ -242,11 +248,16 @@ function AppContent() {
         </ScrollView>
       )}
 
-      <View style={styles.bottomBar}>
+      <View
+        style={[
+          styles.bottomBar,
+          { height: 60 + insets.bottom, paddingBottom: insets.bottom },
+        ]}
+      >
         {[
           ['Home', '⌂'],
           ['Discover', '⌕'],
-          ['Create', '＋'],
+          ['Create', '+'],
           ['Messages', '✉'],
           ['Profile', '◉'],
         ].map(([tab, icon]) => (
@@ -255,16 +266,20 @@ function AppContent() {
             style={styles.navItem}
             onPress={() => setActiveTab(tab)}
           >
-            <Text style={[
-              styles.navIcon,
-              activeTab === tab && styles.activeNav
-            ]}>
+            <Text
+              style={[
+                styles.navIcon,
+                activeTab === tab && styles.activeNav,
+              ]}
+            >
               {icon}
             </Text>
-            <Text style={[
-              styles.navText,
-              activeTab === tab && styles.activeNav
-            ]}>
+            <Text
+              style={[
+                styles.navText,
+                activeTab === tab && styles.activeNav,
+              ]}
+            >
               {tab}
             </Text>
           </TouchableOpacity>
@@ -415,27 +430,8 @@ const styles = StyleSheet.create({
   activeNav: {
     color: '#A855F7',
   },
-
-  otherScreen: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  screenTitle: {
-    color: '#FFFFFF',
-    fontSize: 30,
-    fontWeight: 'bold',
-    marginTop: 25,
-  },
-
-  comingSoon: {
-    color: '#999999',
-    marginTop: 12,
-    fontSize: 15,
-  },
 });
-<View style={styles.bottomBar}>
+
 export default function App() {
   return (
     <SafeAreaProvider>
