@@ -13,6 +13,7 @@ import {
   Share,
   Modal,
   KeyboardAvoidingView,
+  Alert,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -132,6 +133,27 @@ const STRINGS = {
     usernameTaken: 'This username is already taken.',
     confirmEmail: 'Check your email to confirm your account, then log in.',
     errGeneric: 'Something went wrong. Try again.',
+    reportTitle: 'Report',
+    reasonSpam: 'Spam or scam',
+    reasonHarass: 'Harassment or bullying',
+    reasonSexual: 'Nudity or sexual content',
+    reasonViolence: 'Violence or dangerous acts',
+    reasonHate: 'Hate speech',
+    reasonMinor: 'Involves a minor / child safety',
+    reasonOther: 'Something else',
+    reportDetails: 'Add details (optional)',
+    reportSent: 'Thank you. Our team will review your report.',
+    reportVideo: 'Report video',
+    reportUser: 'Report user',
+    block: 'Block',
+    unblock: 'Unblock',
+    blockUser: 'Block user',
+    blockConfirm: "You won't see their videos or comments anymore.",
+    blockedList: 'Blocked users',
+    noBlocked: 'No blocked users.',
+    cancel: 'Cancel',
+    bannedTitle: 'Account disabled',
+    bannedText: 'Your account was disabled because it broke the community rules.',
     demo1: 'Welcome to VYRA! 🌍',
     demo2: 'Discover the world with VYRA ✈️',
     demo3: 'Share your best moments ❤️',
@@ -206,6 +228,27 @@ const STRINGS = {
     usernameTaken: 'اسم المستخدم مستخدم من قبل.',
     confirmEmail: 'افتح بريدك لتأكيد الحساب ثم سجّل الدخول.',
     errGeneric: 'حدث خطأ. حاول مرة أخرى.',
+    reportTitle: 'إبلاغ',
+    reasonSpam: 'محتوى مزعج أو احتيال',
+    reasonHarass: 'تحرش أو تنمر',
+    reasonSexual: 'عري أو محتوى جنسي',
+    reasonViolence: 'عنف أو أفعال خطيرة',
+    reasonHate: 'خطاب كراهية',
+    reasonMinor: 'يتعلق بقاصر / سلامة الأطفال',
+    reasonOther: 'سبب آخر',
+    reportDetails: 'أضف تفاصيل (اختياري)',
+    reportSent: 'شكراً لك. سيراجع فريقنا بلاغك.',
+    reportVideo: 'الإبلاغ عن الفيديو',
+    reportUser: 'الإبلاغ عن المستخدم',
+    block: 'حظر',
+    unblock: 'إلغاء الحظر',
+    blockUser: 'حظر المستخدم',
+    blockConfirm: 'لن ترى فيديوهاته ولا تعليقاته بعد الآن.',
+    blockedList: 'المستخدمون المحظورون',
+    noBlocked: 'لا يوجد مستخدمون محظورون.',
+    cancel: 'إلغاء',
+    bannedTitle: 'الحساب معطّل',
+    bannedText: 'تم تعطيل حسابك لمخالفته قواعد المجتمع.',
     demo1: 'مرحباً بك في VYRA! 🌍',
     demo2: 'اكتشف العالم مع VYRA ✈️',
     demo3: 'شارك أجمل لحظاتك ❤️',
@@ -280,6 +323,27 @@ const STRINGS = {
     usernameTaken: "Ce nom d'utilisateur est déjà pris.",
     confirmEmail: 'Vérifie ton e-mail pour confirmer ton compte, puis connecte-toi.',
     errGeneric: "Une erreur s'est produite. Réessaie.",
+    reportTitle: 'Signaler',
+    reasonSpam: 'Spam ou arnaque',
+    reasonHarass: 'Harcèlement ou intimidation',
+    reasonSexual: 'Nudité ou contenu sexuel',
+    reasonViolence: 'Violence ou actes dangereux',
+    reasonHate: 'Discours haineux',
+    reasonMinor: 'Concerne un mineur / sécurité des enfants',
+    reasonOther: 'Autre chose',
+    reportDetails: 'Ajoute des détails (facultatif)',
+    reportSent: 'Merci. Notre équipe va examiner ton signalement.',
+    reportVideo: 'Signaler la vidéo',
+    reportUser: "Signaler l'utilisateur",
+    block: 'Bloquer',
+    unblock: 'Débloquer',
+    blockUser: "Bloquer l'utilisateur",
+    blockConfirm: 'Tu ne verras plus ses vidéos ni ses commentaires.',
+    blockedList: 'Utilisateurs bloqués',
+    noBlocked: 'Aucun utilisateur bloqué.',
+    cancel: 'Annuler',
+    bannedTitle: 'Compte désactivé',
+    bannedText: 'Ton compte a été désactivé car il enfreint les règles de la communauté.',
     demo1: 'Bienvenue sur VYRA ! 🌍',
     demo2: 'Découvre le monde avec VYRA ✈️',
     demo3: 'Partage tes plus beaux moments ❤️',
@@ -311,6 +375,16 @@ const demoVideos = [
     musicKey: 'dailyMoments',
     color: '#642D48',
   },
+];
+
+const REASONS = [
+  ['spam', 'reasonSpam'],
+  ['harassment', 'reasonHarass'],
+  ['sexual', 'reasonSexual'],
+  ['violence', 'reasonViolence'],
+  ['hate', 'reasonHate'],
+  ['minor', 'reasonMinor'],
+  ['other', 'reasonOther'],
 ];
 
 const NAV = [
@@ -548,6 +622,17 @@ function AppContent() {
   const [stats, setStats] = useState({});
   const [session, setSession] = useState(null);
   const [authReady, setAuthReady] = useState(false);
+  const [people, setPeople] = useState([]);
+  const [blocked, setBlocked] = useState({});
+  const [viewUser, setViewUser] = useState(null);
+  const [counts, setCounts] = useState(null);
+  const [menuVideo, setMenuVideo] = useState(null);
+  const [reportTarget, setReportTarget] = useState(null);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportDone, setReportDone] = useState(false);
+  const [banned, setBanned] = useState(false);
   const [pageHeight, setPageHeight] = useState(height - 85);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [remote, setRemote] = useState([]);
@@ -605,13 +690,15 @@ function AppContent() {
     return null;
   };
 
-  const videos = [...remote, ...demoVideos];
+  const videos = [...remote, ...demoVideos].filter(
+    (v) => !(v.user_id && blocked[v.user_id])
+  );
   const countOf = (id) => stats[id] || { likes: 0, comments: 0 };
   const score = (v) => countOf(v.id).likes * 2 + countOf(v.id).comments;
 
   const feedVideos =
     activeFeed === 'following'
-      ? videos.filter((v) => following[v.user])
+      ? videos.filter((v) => v.user_id && following[v.user_id])
       : activeFeed === 'trending'
       ? [...videos].sort((a, b) => score(b) - score(a))
       : videos;
@@ -662,8 +749,6 @@ function AppContent() {
       try {
         const l = await AsyncStorage.getItem('vyra_lang');
         if (l && STRINGS[l]) setLang(l);
-        const f = await AsyncStorage.getItem('vyra_following');
-        if (f) setFollowing(JSON.parse(f));
         const raw = await AsyncStorage.getItem('vyra_session');
         if (raw) {
           let sess = JSON.parse(raw);
@@ -701,6 +786,60 @@ function AppContent() {
       .catch(() => {});
   }, [myId]);
 
+  const loadSocial = useCallback(async () => {
+    if (!myId) return;
+    try {
+      const [f, b, pe] = await Promise.all([
+        api('follows?select=followed_id&follower_id=eq.' + myId).then((r) => r.json()),
+        api('blocks?select=blocked_id').then((r) => r.json()),
+        api('profiles?select=id,username&order=created_at.desc&limit=100').then((r) => r.json()),
+      ]);
+      if (Array.isArray(f)) {
+        const m = {};
+        f.forEach((x) => {
+          m[x.followed_id] = true;
+        });
+        setFollowing(m);
+      }
+      if (Array.isArray(b)) {
+        const m = {};
+        b.forEach((x) => {
+          m[x.blocked_id] = true;
+        });
+        setBlocked(m);
+      }
+      if (Array.isArray(pe)) setPeople(pe);
+    } catch (e) {
+      // offline
+    }
+  }, [myId]);
+
+  useEffect(() => {
+    loadSocial();
+  }, [loadSocial]);
+
+  useEffect(() => {
+    if ((activeTab === 'Friends' || activeTab === 'Follow') && myId) loadSocial();
+  }, [activeTab, myId, loadSocial]);
+
+  useEffect(() => {
+    if (activeTab === 'Profile' && myId) {
+      setCounts(null);
+      loadCounts(myId);
+    }
+  }, [activeTab, myId]);
+
+  useEffect(() => {
+    if (!myId) {
+      setBanned(false);
+      return;
+    }
+    api('rpc/is_banned', { method: 'POST', body: '{}' })
+      .then((r) => r.json())
+      .then((v) => setBanned(v === true))
+      .catch(() => {});
+  }, [myId]);
+
   const changeLang = (code) => {
     setLang(code);
     AsyncStorage.setItem('vyra_lang', code).catch(() => {});
@@ -711,12 +850,143 @@ function AppContent() {
     setCurrentIndex(0);
   };
 
-  const toggleFollow = (user) => {
-    setFollowing((prev) => {
-      const next = { ...prev, [user]: !prev[user] };
-      AsyncStorage.setItem('vyra_following', JSON.stringify(next)).catch(() => {});
-      return next;
+  const loadCounts = async (userId) => {
+    try {
+      const [a, b, c] = await Promise.all([
+        api('follows?select=follower_id&followed_id=eq.' + userId + '&limit=1000').then((r) => r.json()),
+        api('follows?select=followed_id&follower_id=eq.' + userId + '&limit=1000').then((r) => r.json()),
+        api('videos?select=id&user_id=eq.' + userId + '&limit=1000').then((r) => r.json()),
+      ]);
+      setCounts({
+        followers: Array.isArray(a) ? a.length : 0,
+        following: Array.isArray(b) ? b.length : 0,
+        posts: Array.isArray(c) ? c.length : 0,
+      });
+    } catch (e) {
+      // keep dashes
+    }
+  };
+
+  const openUser = (userId, name) => {
+    if (!userId) return;
+    if (userId === myId) {
+      setActiveTab('Profile');
+      return;
+    }
+    setViewUser({ id: userId, username: name || '?' });
+    setCounts(null);
+    setActiveTab('User');
+    loadCounts(userId);
+  };
+
+  const toggleFollow = async (userId) => {
+    if (!userId || !myId || userId === myId) return;
+    const token = await ensureToken();
+    if (!token) return;
+    const was = !!following[userId];
+    setFollowing((p) => ({ ...p, [userId]: !was }));
+    setCounts((c) =>
+      c && viewUser && viewUser.id === userId
+        ? { ...c, followers: Math.max(0, c.followers + (was ? -1 : 1)) }
+        : c
+    );
+    try {
+      if (was) {
+        await api(
+          'follows?follower_id=eq.' + myId + '&followed_id=eq.' + userId,
+          { method: 'DELETE' }
+        );
+      } else {
+        await api('follows', {
+          method: 'POST',
+          headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({ follower_id: myId, followed_id: userId }),
+        });
+      }
+    } catch (e) {
+      // will resync later
+    }
+  };
+
+  const blockUser = (userId, name) => {
+    setMenuVideo(null);
+    Alert.alert(t('blockUser') + ' @' + name, t('blockConfirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('block'),
+        style: 'destructive',
+        onPress: async () => {
+          const token = await ensureToken();
+          if (!token) return;
+          setBlocked((p) => ({ ...p, [userId]: true }));
+          setFollowing((p) => ({ ...p, [userId]: false }));
+          if (activeTab === 'User') setActiveTab('Home');
+          try {
+            await api(
+              'follows?follower_id=eq.' + myId + '&followed_id=eq.' + userId,
+              { method: 'DELETE' }
+            );
+            await api('blocks', {
+              method: 'POST',
+              headers: { Prefer: 'return=minimal' },
+              body: JSON.stringify({ blocker_id: myId, blocked_id: userId }),
+            });
+          } catch (e) {
+            // will resync later
+          }
+        },
+      },
+    ]);
+  };
+
+  const unblockUser = async (userId) => {
+    const token = await ensureToken();
+    if (!token) return;
+    setBlocked((p) => {
+      const n = { ...p };
+      delete n[userId];
+      return n;
     });
+    try {
+      await api(
+        'blocks?blocker_id=eq.' + myId + '&blocked_id=eq.' + userId,
+        { method: 'DELETE' }
+      );
+    } catch (e) {
+      // will resync later
+    }
+  };
+
+  const openReport = (type, id) => {
+    setMenuVideo(null);
+    setReportTarget({ type: type, id: String(id) });
+    setReportReason('');
+    setReportDetails('');
+    setReportDone(false);
+  };
+
+  const sendReport = async () => {
+    if (!reportTarget || !reportReason || !myId) return;
+    const token = await ensureToken();
+    if (!token) return;
+    setReportBusy(true);
+    try {
+      const res = await api('reports', {
+        method: 'POST',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          reporter_id: myId,
+          target_type: reportTarget.type,
+          target_id: reportTarget.id,
+          reason: reportReason,
+          details: reportDetails.trim() || null,
+        }),
+      });
+      if (res.ok) setReportDone(true);
+    } catch (e) {
+      // not sent
+    }
+    setReportBusy(false);
   };
 
   const toggleLike = async (video) => {
@@ -924,7 +1194,8 @@ function AppContent() {
 
   const renderVideo = (video, index) => {
     const c = countOf(video.id);
-    const isFollowed = !!following[video.user];
+    const isFollowed = !!following[video.user_id];
+    const showFollow = !!video.user_id && video.user_id !== myId;
     return (
       <View
         key={video.id}
@@ -948,15 +1219,19 @@ function AppContent() {
 
         <View style={styles.videoInfo}>
           <View style={styles.userRow}>
-            <Text style={styles.username}>@{video.user}</Text>
-            <TouchableOpacity
-              style={[styles.followPill, isFollowed && styles.followPillOn]}
-              onPress={() => toggleFollow(video.user)}
-            >
-              <Text style={styles.followPillText}>
-                {isFollowed ? t('btnFollowing') : '+ ' + t('btnFollow')}
-              </Text>
+            <TouchableOpacity onPress={() => openUser(video.user_id, video.user)}>
+              <Text style={styles.username}>@{video.user}</Text>
             </TouchableOpacity>
+            {showFollow && (
+              <TouchableOpacity
+                style={[styles.followPill, isFollowed && styles.followPillOn]}
+                onPress={() => toggleFollow(video.user_id)}
+              >
+                <Text style={styles.followPillText}>
+                  {isFollowed ? t('btnFollowing') : '+ ' + t('btnFollow')}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
           <Text style={styles.description}>
             {video.descKey ? t(video.descKey) : video.description}
@@ -967,17 +1242,20 @@ function AppContent() {
         <View style={styles.actions}>
           <TouchableOpacity
             style={styles.avatarWrap}
-            onPress={() => toggleFollow(video.user)}
+            onPress={() => openUser(video.user_id, video.user)}
           >
             <View style={styles.avatar}>
               <Text style={styles.avatarLetter}>
                 {(video.user || '?').charAt(0).toUpperCase()}
               </Text>
             </View>
-            {!isFollowed && (
-              <View style={styles.avatarPlus}>
+            {showFollow && !isFollowed && (
+              <TouchableOpacity
+                style={styles.avatarPlus}
+                onPress={() => toggleFollow(video.user_id)}
+              >
                 <Text style={styles.avatarPlusText}>+</Text>
-              </View>
+              </TouchableOpacity>
             )}
           </TouchableOpacity>
 
@@ -995,30 +1273,39 @@ function AppContent() {
             <Text style={styles.actionIcon}>↗️</Text>
             <Text style={styles.actionText}>{t('share')}</Text>
           </TouchableOpacity>
+
+          {showFollow && (
+            <TouchableOpacity style={styles.action} onPress={() => setMenuVideo(video)}>
+              <Text style={styles.actionIcon}>⋯</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
   };
 
-  const creators = [...new Set(videos.map((v) => v.user))];
-  const friendList = Object.keys(following).filter((k) => following[k]);
+  const followedPeople = people.filter((pe) => following[pe.id]);
+  const discoverPeople = people.filter((pe) => pe.id !== myId && !blocked[pe.id]);
 
-  const creatorRow = (name, withButton) => (
-    <View key={name} style={styles.creatorRow}>
-      <View style={styles.smallAvatar}>
-        <Text style={styles.avatarLetter}>{name.charAt(0).toUpperCase()}</Text>
-      </View>
-      <Text style={styles.creatorName}>@{name}</Text>
-      {withButton && (
-        <TouchableOpacity
-          style={[styles.followPill, following[name] && styles.followPillOn]}
-          onPress={() => toggleFollow(name)}
-        >
-          <Text style={styles.followPillText}>
-            {following[name] ? t('btnFollowing') : '+ ' + t('btnFollow')}
-          </Text>
-        </TouchableOpacity>
-      )}
+  const personRow = (pe) => (
+    <View key={pe.id} style={styles.creatorRow}>
+      <TouchableOpacity
+        style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+        onPress={() => openUser(pe.id, pe.username)}
+      >
+        <View style={styles.smallAvatar}>
+          <Text style={styles.avatarLetter}>{pe.username.charAt(0).toUpperCase()}</Text>
+        </View>
+        <Text style={styles.creatorName}>@{pe.username}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.followPill, following[pe.id] && styles.followPillOn]}
+        onPress={() => toggleFollow(pe.id)}
+      >
+        <Text style={styles.followPillText}>
+          {following[pe.id] ? t('btnFollowing') : '+ ' + t('btnFollow')}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -1043,6 +1330,27 @@ function AppContent() {
         changeLang={changeLang}
         onSession={saveSession}
       />
+    );
+  }
+
+  if (banned) {
+    return (
+      <View
+        style={[
+          styles.container,
+          { alignItems: 'center', justifyContent: 'center', padding: 30 },
+        ]}
+      >
+        <Text style={styles.liveBig}>🚫</Text>
+        <Text style={[styles.screenTitle, { marginTop: 16 }]}>{t('bannedTitle')}</Text>
+        <Text style={styles.liveInfo}>{t('bannedText')}</Text>
+        <TouchableOpacity
+          style={[styles.logoutBtn, { alignSelf: 'stretch' }]}
+          onPress={logout}
+        >
+          <Text style={styles.logoutText}>{t('logout')}</Text>
+        </TouchableOpacity>
+      </View>
     );
   }
 
@@ -1095,17 +1403,58 @@ function AppContent() {
           {activeTab === 'Friends' ? (
             <View style={{ marginTop: 30 }}>
               <Text style={styles.screenTitle}>{t('friendsTitle')}</Text>
-              {friendList.length === 0 ? (
+              {followedPeople.length === 0 ? (
                 <Text style={styles.screenSub}>{t('friendsEmpty')}</Text>
               ) : (
-                friendList.map((n) => creatorRow(n, true))
+                followedPeople.map(personRow)
               )}
             </View>
           ) : activeTab === 'Follow' ? (
             <View style={{ marginTop: 30 }}>
               <Text style={styles.screenTitle}>{t('discoverTitle')}</Text>
               <Text style={styles.screenSub}>{t('explore')}</Text>
-              {creators.map((n) => creatorRow(n, true))}
+              {discoverPeople.map(personRow)}
+            </View>
+          ) : activeTab === 'User' && viewUser ? (
+            <View style={{ alignItems: 'center', marginTop: 30 }}>
+              <View style={styles.bigAvatar}>
+                <Text style={{ fontSize: 34, color: '#FFFFFF', fontWeight: 'bold' }}>
+                  {viewUser.username.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <Text style={{ color: 'white', fontSize: 22, fontWeight: 'bold', marginTop: 12 }}>
+                @{viewUser.username}
+              </Text>
+              <Text style={{ color: '#A855F7', marginTop: 18, fontSize: 16 }}>
+                {counts ? counts.posts : '-'} {t('posts')}     {counts ? counts.followers : '-'} {t('followers')}     {counts ? counts.following : '-'} {t('followingCount')}
+              </Text>
+
+              <TouchableOpacity
+                style={[styles.primaryBtn, { alignSelf: 'stretch' }]}
+                onPress={() => toggleFollow(viewUser.id)}
+              >
+                <Text style={styles.primaryBtnText}>
+                  {following[viewUser.id] ? t('btnFollowing') : t('btnFollow')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.logoutBtn}
+                onPress={() => blockUser(viewUser.id, viewUser.username)}
+              >
+                <Text style={styles.logoutText}>{t('blockUser')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.logoutBtn, { marginTop: 12 }]}
+                onPress={() => openReport('user', viewUser.id)}
+              >
+                <Text style={styles.logoutText}>{t('reportUser')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => setActiveTab('Home')}>
+                <Text style={styles.authSwitch}>‹ {t('navHome')}</Text>
+              </TouchableOpacity>
             </View>
           ) : activeTab === 'Live' ? (
             <View style={{ alignItems: 'center', marginTop: 70 }}>
@@ -1182,7 +1531,7 @@ function AppContent() {
                 @{myName}
               </Text>
               <Text style={{ color: '#A855F7', marginTop: 18, fontSize: 16 }}>
-                {remote.filter((v) => v.user_id === myId).length} {t('posts')}     {friendList.length} {t('followingCount')}
+                {counts ? counts.posts : '-'} {t('posts')}     {counts ? counts.followers : '-'} {t('followers')}     {counts ? counts.following : '-'} {t('followingCount')}
               </Text>
 
               <TouchableOpacity
@@ -1196,6 +1545,30 @@ function AppContent() {
               <Text style={{ color: '#999999', marginTop: 10 }}>
                 {remote.length > 0 ? t('videosInFeed') : t('videosWillAppear')}
               </Text>
+
+              <Text style={{ color: 'white', marginTop: 30 }}>{t('blockedList')}</Text>
+              {Object.keys(blocked).filter((k) => blocked[k]).length === 0 ? (
+                <Text style={{ color: '#999999', marginTop: 10 }}>{t('noBlocked')}</Text>
+              ) : (
+                Object.keys(blocked)
+                  .filter((k) => blocked[k])
+                  .map((bid) => {
+                    const pe = people.find((x) => x.id === bid);
+                    return (
+                      <View key={bid} style={[styles.creatorRow, { alignSelf: 'stretch' }]}>
+                        <Text style={styles.creatorName}>
+                          @{pe ? pe.username : bid.slice(0, 8)}
+                        </Text>
+                        <TouchableOpacity
+                          style={styles.followPill}
+                          onPress={() => unblockUser(bid)}
+                        >
+                          <Text style={styles.followPillText}>{t('unblock')}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })
+              )}
 
               <Text style={{ color: 'white', marginTop: 30 }}>{t('language')}</Text>
               <View style={styles.langRow}>
@@ -1240,12 +1613,26 @@ function AppContent() {
             <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
               {commentsLoading ? (
                 <ActivityIndicator color="#A855F7" style={{ marginTop: 20 }} />
-              ) : comments.length === 0 ? (
+              ) : comments.filter((c) => !blocked[c.user_id]).length === 0 ? (
                 <Text style={styles.noComments}>{t('noComments')}</Text>
               ) : (
-                comments.map((c) => (
+                comments
+                  .filter((c) => !blocked[c.user_id])
+                  .map((c) => (
                   <View key={c.id} style={styles.commentRow}>
-                    <Text style={styles.commentUser}>@{c.username}</Text>
+                    <View style={styles.rowBetween}>
+                      <Text style={styles.commentUser}>@{c.username}</Text>
+                      {c.user_id && c.user_id !== myId ? (
+                        <TouchableOpacity
+                          onPress={() => {
+                            setCommentsFor(null);
+                            setTimeout(() => openReport('comment', c.id), 350);
+                          }}
+                        >
+                          <Text style={styles.flag}>⚑</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
                     <Text style={styles.commentText}>{c.content}</Text>
                   </View>
                 ))
@@ -1265,6 +1652,116 @@ function AppContent() {
                 <Text style={styles.sendBtnText}>{t('send')}</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal
+        visible={menuVideo !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuVideo(null)}
+      >
+        <TouchableOpacity
+          style={styles.menuWrap}
+          activeOpacity={1}
+          onPress={() => setMenuVideo(null)}
+        >
+          <View style={[styles.menuSheet, { paddingBottom: insets.bottom + 12 }]}>
+            {menuVideo && String(menuVideo.id).startsWith('r') ? (
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => openReport('video', String(menuVideo.id).slice(1))}
+              >
+                <Text style={styles.menuText}>{t('reportVideo')}</Text>
+              </TouchableOpacity>
+            ) : null}
+            {menuVideo && menuVideo.user_id ? (
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => openReport('user', menuVideo.user_id)}
+              >
+                <Text style={styles.menuText}>{t('reportUser')}</Text>
+              </TouchableOpacity>
+            ) : null}
+            {menuVideo && menuVideo.user_id ? (
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => blockUser(menuVideo.user_id, menuVideo.user)}
+              >
+                <Text style={styles.menuText}>{t('blockUser')}</Text>
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity style={styles.menuItem} onPress={() => setMenuVideo(null)}>
+              <Text style={[styles.menuText, { color: '#999999' }]}>{t('cancel')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal
+        visible={reportTarget !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setReportTarget(null)}
+      >
+        <KeyboardAvoidingView style={styles.modalWrap} behavior="padding">
+          <View style={[styles.sheet, { height: '80%', paddingBottom: insets.bottom + 12 }]}>
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>{t('reportTitle')}</Text>
+              <TouchableOpacity onPress={() => setReportTarget(null)}>
+                <Text style={styles.sheetClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {reportDone ? (
+              <View>
+                <Text style={styles.reportThanks}>{t('reportSent')}</Text>
+                <TouchableOpacity
+                  style={styles.primaryBtn}
+                  onPress={() => setReportTarget(null)}
+                >
+                  <Text style={styles.primaryBtnText}>OK</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <ScrollView keyboardShouldPersistTaps="handled">
+                {REASONS.map(([key, label]) => (
+                  <TouchableOpacity
+                    key={key}
+                    style={[styles.reasonRow, reportReason === key && styles.reasonRowOn]}
+                    onPress={() => setReportReason(key)}
+                  >
+                    <Text style={styles.reasonText}>{t(label)}</Text>
+                  </TouchableOpacity>
+                ))}
+
+                <TextInput
+                  style={styles.input}
+                  placeholder={t('reportDetails')}
+                  placeholderTextColor="#777777"
+                  value={reportDetails}
+                  onChangeText={setReportDetails}
+                  maxLength={500}
+                  multiline
+                />
+
+                <TouchableOpacity
+                  style={[
+                    styles.primaryBtn,
+                    { opacity: reportReason && !reportBusy ? 1 : 0.4 },
+                  ]}
+                  disabled={!reportReason || reportBusy}
+                  onPress={sendReport}
+                >
+                  {reportBusy ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.primaryBtnText}>{t('send')}</Text>
+                  )}
+                </TouchableOpacity>
+              </ScrollView>
+            )}
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -1859,6 +2356,69 @@ const styles = StyleSheet.create({
   logoutText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
+  },
+
+  rowBetween: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  flag: {
+    color: '#999999',
+    fontSize: 18,
+    paddingHorizontal: 6,
+  },
+
+  menuWrap: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+
+  menuSheet: {
+    backgroundColor: '#141414',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 12,
+  },
+
+  menuItem: {
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#2A2A2A',
+  },
+
+  menuText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+  },
+
+  reasonRow: {
+    backgroundColor: '#202020',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+
+  reasonRowOn: {
+    borderColor: '#A855F7',
+  },
+
+  reasonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+  },
+
+  reportThanks: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 30,
   },
 
   primaryBtn: {
