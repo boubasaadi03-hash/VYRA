@@ -1,5 +1,5 @@
 // VYRA
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,37 +8,64 @@ import {
   StatusBar,
   ScrollView,
   Dimensions,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
+import { useVideoPlayer, VideoView } from 'expo-video';
+
+const SUPABASE_URL = 'https://izaovotpdkfabizdzpew.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_pZGo3ceCADgIYO_NF85Ujw_exlkdErd';
 
 const { width, height } = Dimensions.get('window');
 
-const videos = [
+const demoVideos = [
   {
-    id: 1,
+    id: 'd1',
     user: 'vyra_creator',
-    name: 'VYRA Creator',
     description: 'Welcome to VYRA! 🌍',
     music: 'Original sound',
     color: '#30205B',
   },
   {
-    id: 2,
+    id: 'd2',
     user: 'world_traveler',
-    name: 'World Traveler',
     description: 'Discover the world with VYRA ✈️',
     music: 'Travel vibes',
     color: '#164B65',
   },
   {
-    id: 3,
+    id: 'd3',
     user: 'daily_life',
-    name: 'Daily Life',
     description: 'Share your best moments ❤️',
     music: 'Daily moments',
     color: '#642D48',
   },
 ];
+
+function VideoPlayer({ url, active }) {
+  const player = useVideoPlayer(url, (p) => {
+    p.loop = true;
+  });
+
+  useEffect(() => {
+    if (active) {
+      player.play();
+    } else {
+      player.pause();
+    }
+  }, [active, player]);
+
+  return (
+    <VideoView
+      player={player}
+      style={StyleSheet.absoluteFill}
+      contentFit="cover"
+      nativeControls={false}
+    />
+  );
+}
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState('Home');
@@ -46,7 +73,103 @@ function AppContent() {
   const [likes, setLikes] = useState({});
   const [activeFeed, setActiveFeed] = useState('For You');
   const [pageHeight, setPageHeight] = useState(height - 85);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [remote, setRemote] = useState([]);
+  const [picked, setPicked] = useState(null);
+  const [description, setDescription] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [status, setStatus] = useState('');
   const insets = useSafeAreaInsets();
+
+  const videos = [...remote, ...demoVideos];
+
+  const loadVideos = useCallback(async () => {
+    try {
+      const res = await fetch(
+        SUPABASE_URL + '/rest/v1/videos?select=*&order=created_at.desc&limit=30',
+        { headers: { apikey: SUPABASE_KEY } }
+      );
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setRemote(
+          data.map((v) => ({
+            id: 'r' + v.id,
+            user: v.username,
+            description: v.description || '',
+            music: 'Original sound',
+            color: '#1A1A2E',
+            url: v.video_url,
+          }))
+        );
+      }
+    } catch (e) {
+      // no connection: keep demo videos only
+    }
+  }, []);
+
+  useEffect(() => {
+    loadVideos();
+  }, [loadVideos]);
+
+  const pickVideo = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['videos'],
+      quality: 1,
+    });
+    if (!result.canceled) {
+      setPicked(result.assets[0]);
+      setStatus('');
+    }
+  };
+
+  const uploadVideo = async () => {
+    if (!picked) return;
+    setUploading(true);
+    setStatus('');
+    try {
+      const ext = (picked.uri.split('?')[0].split('.').pop() || 'mp4').toLowerCase();
+      const fileName = Date.now() + '.' + ext;
+      const mime = picked.mimeType || 'video/mp4';
+
+      const blob = await (await fetch(picked.uri)).blob();
+      const up = await fetch(
+        SUPABASE_URL + '/storage/v1/object/videos/' + fileName,
+        {
+          method: 'POST',
+          headers: { apikey: SUPABASE_KEY, 'Content-Type': mime },
+          body: blob,
+        }
+      );
+      if (!up.ok) throw new Error(await up.text());
+
+      const publicUrl =
+        SUPABASE_URL + '/storage/v1/object/public/videos/' + fileName;
+      const ins = await fetch(SUPABASE_URL + '/rest/v1/videos', {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_KEY,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify({
+          username: 'vyra_creator',
+          description: description,
+          video_url: publicUrl,
+        }),
+      });
+      if (!ins.ok) throw new Error(await ins.text());
+
+      setPicked(null);
+      setDescription('');
+      setStatus('');
+      await loadVideos();
+      setCurrentIndex(0);
+      setActiveTab('Home');
+    } catch (e) {
+      setStatus('Upload failed: ' + String(e.message).slice(0, 200));
+    }
+    setUploading(false);
+  };
 
   const toggleLike = (id) => {
     setLikes((prev) => ({
@@ -62,11 +185,18 @@ function AppContent() {
     }));
   };
 
-  const renderVideo = (video) => (
+  const renderVideo = (video, index) => (
     <View
       key={video.id}
       style={[styles.video, { backgroundColor: video.color, height: pageHeight }]}
     >
+      {video.url && Math.abs(index - currentIndex) <= 1 && (
+        <VideoPlayer
+          url={video.url}
+          active={index === currentIndex && activeTab === 'Home'}
+        />
+      )}
+
       <View style={styles.videoTop}>
         <Text style={styles.logo}>VYRA</Text>
         <View style={styles.feedButtons}>
@@ -94,18 +224,16 @@ function AppContent() {
         </View>
       </View>
 
-      <View style={styles.centerContent}>
-        <Text style={styles.videoTitle}>VYRA</Text>
-        <Text style={styles.videoSubtitle}>
-          Your world. Your moments.
-        </Text>
-      </View>
+      {!video.url && (
+        <View style={styles.centerContent}>
+          <Text style={styles.videoTitle}>VYRA</Text>
+          <Text style={styles.videoSubtitle}>Your world. Your moments.</Text>
+        </View>
+      )}
 
       <View style={styles.videoInfo}>
         <Text style={styles.username}>@{video.user}</Text>
-        <Text style={styles.description}>
-          {video.description}
-        </Text>
+        <Text style={styles.description}>{video.description}</Text>
         <Text style={styles.music}>♫ {video.music}</Text>
       </View>
 
@@ -153,6 +281,11 @@ function AppContent() {
         <ScrollView
           style={{ flex: 1 }}
           onLayout={(e) => setPageHeight(e.nativeEvent.layout.height)}
+          onMomentumScrollEnd={(e) =>
+            setCurrentIndex(
+              Math.round(e.nativeEvent.contentOffset.y / pageHeight)
+            )
+          }
           pagingEnabled
           decelerationRate="fast"
           showsVerticalScrollIndicator={false}
@@ -162,7 +295,10 @@ function AppContent() {
       )}
 
       {activeTab !== 'Home' && (
-        <ScrollView style={{ flex: 1, padding: 22 }}>
+        <ScrollView
+          style={{ flex: 1, padding: 22 }}
+          keyboardShouldPersistTaps="handled"
+        >
           <Text style={styles.logo}>VYRA</Text>
 
           {activeTab === 'Profile' ? (
@@ -178,13 +314,15 @@ function AppContent() {
                 Your world. Your moments. 🌍
               </Text>
               <Text style={{ color: '#A855F7', marginTop: 30, fontSize: 18 }}>
-                0 Posts     0 Followers     0 Following
+                {remote.length} Posts     0 Followers     0 Following
               </Text>
               <Text style={{ color: 'white', marginTop: 35 }}>
                 My Videos
               </Text>
               <Text style={{ color: '#999999', marginTop: 15 }}>
-                Your videos will appear here.
+                {remote.length > 0
+                  ? 'Your videos are in the Home feed.'
+                  : 'Your videos will appear here.'}
               </Text>
             </View>
           ) : activeTab === 'Discover' ? (
@@ -230,19 +368,59 @@ function AppContent() {
               </Text>
             </View>
           ) : activeTab === 'Create' ? (
-            <View style={{ alignItems: 'center', marginTop: 70 }}>
-              <Text style={{ color: '#A855F7', fontSize: 28, fontWeight: 'bold' }}>
+            <View style={{ marginTop: 40 }}>
+              <Text
+                style={{
+                  color: '#A855F7',
+                  fontSize: 28,
+                  fontWeight: 'bold',
+                  textAlign: 'center',
+                }}
+              >
                 Create on VYRA
               </Text>
-              <Text style={{ color: 'white', fontSize: 55, marginTop: 35 }}>
-                +
-              </Text>
-              <Text style={{ color: 'white', fontSize: 18, marginTop: 20 }}>
-                Share your moments
-              </Text>
-              <Text style={{ color: '#999999', marginTop: 12 }}>
-                Video upload will be connected next.
-              </Text>
+
+              <TouchableOpacity style={styles.primaryBtn} onPress={pickVideo}>
+                <Text style={styles.primaryBtnText}>
+                  {picked ? 'Change video' : 'Choose a video'}
+                </Text>
+              </TouchableOpacity>
+
+              {picked ? (
+                <Text style={{ color: '#CCCCCC', marginTop: 12, textAlign: 'center' }}>
+                  Video selected ✓
+                </Text>
+              ) : null}
+
+              <TextInput
+                style={styles.input}
+                placeholder="Write a caption..."
+                placeholderTextColor="#777777"
+                value={description}
+                onChangeText={setDescription}
+                maxLength={150}
+              />
+
+              <TouchableOpacity
+                style={[
+                  styles.primaryBtn,
+                  { opacity: picked && !uploading ? 1 : 0.4 },
+                ]}
+                disabled={!picked || uploading}
+                onPress={uploadVideo}
+              >
+                {uploading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.primaryBtnText}>Upload</Text>
+                )}
+              </TouchableOpacity>
+
+              {status ? (
+                <Text style={{ color: '#EEEEEE', marginTop: 16, textAlign: 'center' }}>
+                  {status}
+                </Text>
+              ) : null}
             </View>
           ) : null}
         </ScrollView>
@@ -429,6 +607,30 @@ const styles = StyleSheet.create({
 
   activeNav: {
     color: '#A855F7',
+  },
+
+  primaryBtn: {
+    backgroundColor: '#A855F7',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 24,
+  },
+
+  primaryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
+  input: {
+    backgroundColor: '#202020',
+    color: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginTop: 24,
+    fontSize: 15,
   },
 });
 
