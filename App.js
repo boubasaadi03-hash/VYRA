@@ -89,6 +89,10 @@ function AppContent() {
   const insets = useSafeAreaInsets();
 
   const videos = [...remote, ...demoVideos];
+  const feedVideos =
+    activeFeed === 'Following'
+      ? videos.filter((v) => following[v.user])
+      : videos;
 
   const loadVideos = useCallback(async () => {
     try {
@@ -252,6 +256,40 @@ function AppContent() {
     }));
   };
 
+  const switchFeed = (feed) => {
+    setActiveFeed(feed);
+    setCurrentIndex(0);
+  };
+
+  const renderTop = () => (
+    <View style={styles.videoTop}>
+      <Text style={styles.logo}>VYRA</Text>
+      <View style={styles.feedButtons}>
+        <TouchableOpacity onPress={() => switchFeed('Following')}>
+          <Text
+            style={[
+              styles.feedText,
+              activeFeed === 'Following' && styles.selectedFeed,
+            ]}
+          >
+            Following
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => switchFeed('For You')}>
+          <Text
+            style={[
+              styles.feedText,
+              activeFeed === 'For You' && styles.selectedFeed,
+            ]}
+          >
+            For You
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   const renderVideo = (video, index) => (
     <View
       key={video.id}
@@ -264,32 +302,7 @@ function AppContent() {
         />
       )}
 
-      <View style={styles.videoTop}>
-        <Text style={styles.logo}>VYRA</Text>
-        <View style={styles.feedButtons}>
-          <TouchableOpacity onPress={() => setActiveFeed('Following')}>
-            <Text
-              style={[
-                styles.feedText,
-                activeFeed === 'Following' && styles.selectedFeed,
-              ]}
-            >
-              Following
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => setActiveFeed('For You')}>
-            <Text
-              style={[
-                styles.feedText,
-                activeFeed === 'For You' && styles.selectedFeed,
-              ]}
-            >
-              For You
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      {renderTop()}
 
       {!video.url && (
         <View style={styles.centerContent}>
@@ -335,11 +348,11 @@ function AppContent() {
 
         <TouchableOpacity
           style={styles.action}
-          onPress={() => toggleFollow(video.id)}
+          onPress={() => toggleFollow(video.user)}
         >
           <Text style={styles.actionIcon}>+</Text>
           <Text style={styles.actionText}>
-            {following[video.id] ? 'Following' : 'Follow'}
+            {following[video.user] ? 'Following' : 'Follow'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -352,6 +365,7 @@ function AppContent() {
 
       {activeTab === 'Home' && (
         <ScrollView
+          key={activeFeed}
           style={{ flex: 1 }}
           onLayout={(e) => setPageHeight(e.nativeEvent.layout.height)}
           onMomentumScrollEnd={(e) =>
@@ -363,7 +377,24 @@ function AppContent() {
           decelerationRate="fast"
           showsVerticalScrollIndicator={false}
         >
-          {videos.map(renderVideo)}
+          {feedVideos.length === 0 ? (
+            <View
+              style={[
+                styles.video,
+                { backgroundColor: '#101010', height: pageHeight },
+              ]}
+            >
+              {renderTop()}
+              <View style={styles.centerContent}>
+                <Text style={styles.emptyTitle}>No videos yet</Text>
+                <Text style={styles.emptySub}>
+                  Follow creators in For You to see their videos here.
+                </Text>
+              </View>
+            </View>
+          ) : (
+            feedVideos.map(renderVideo)
+          )}
         </ScrollView>
       )}
 
@@ -809,6 +840,20 @@ const styles = StyleSheet.create({
   sendBtnText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
+  },
+
+  emptyTitle: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+
+  emptySub: {
+    color: '#999999',
+    fontSize: 14,
+    marginTop: 10,
+    textAlign: 'center',
+    paddingHorizontal: 40,
   },
 
   primaryBtn: {
