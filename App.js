@@ -17,6 +17,7 @@ import {
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SUPABASE_URL = 'https://izaovotpdkfabizdzpew.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_pZGo3ceCADgIYO_NF85Ujw_exlkdErd';
@@ -27,25 +28,190 @@ const demoVideos = [
   {
     id: 'd1',
     user: 'vyra_creator',
-    description: 'Welcome to VYRA! 🌍',
-    music: 'Original sound',
+    descKey: 'demo1',
+    musicKey: 'originalSound',
     color: '#30205B',
   },
   {
     id: 'd2',
     user: 'world_traveler',
-    description: 'Discover the world with VYRA ✈️',
-    music: 'Travel vibes',
+    descKey: 'demo2',
+    musicKey: 'travelVibes',
     color: '#164B65',
   },
   {
     id: 'd3',
     user: 'daily_life',
-    description: 'Share your best moments ❤️',
-    music: 'Daily moments',
+    descKey: 'demo3',
+    musicKey: 'dailyMoments',
     color: '#642D48',
   },
 ];
+
+const STRINGS = {
+  en: {
+    tabFollowing: 'Following',
+    tabForYou: 'For You',
+    tagline: 'Your world. Your moments.',
+    like: 'Like',
+    liked: 'Liked',
+    comment: 'Comment',
+    share: 'Share',
+    btnFollow: 'Follow',
+    btnFollowing: 'Following',
+    shareLink: 'Watch this video on VYRA: ',
+    shareGeneric: 'Join me on VYRA - Your world. Your moments.',
+    commentsTitle: 'Comments',
+    noComments: 'No comments yet. Be the first!',
+    addComment: 'Add a comment...',
+    send: 'Send',
+    home: 'Home',
+    discover: 'Discover',
+    create: 'Create',
+    messages: 'Messages',
+    profile: 'Profile',
+    posts: 'Posts',
+    followers: 'Followers',
+    followingCount: 'Following',
+    myVideos: 'My Videos',
+    videosInFeed: 'Your videos are in the Home feed.',
+    videosWillAppear: 'Your videos will appear here.',
+    language: 'Language',
+    discoverTitle: 'Discover 🌍',
+    explore: 'Explore people around the world',
+    discoverCreator: 'Discover creator',
+    nameTraveler: 'World Traveler',
+    nameDaily: 'Daily Life',
+    nameCreator: 'VYRA Creator',
+    messagesTitle: 'Messages ✉️',
+    yourConvos: 'Your conversations',
+    noMessages: 'No messages yet.',
+    startConnecting: 'Start connecting with people on VYRA.',
+    createTitle: 'Create on VYRA',
+    chooseVideo: 'Choose a video',
+    changeVideo: 'Change video',
+    videoSelected: 'Video selected ✓',
+    captionPlaceholder: 'Write a caption...',
+    upload: 'Upload',
+    uploadFailed: 'Upload failed:',
+    noVideos: 'No videos yet',
+    followHint: 'Follow creators in For You to see their videos here.',
+    demo1: 'Welcome to VYRA! 🌍',
+    demo2: 'Discover the world with VYRA ✈️',
+    demo3: 'Share your best moments ❤️',
+    originalSound: 'Original sound',
+    travelVibes: 'Travel vibes',
+    dailyMoments: 'Daily moments',
+  },
+  ar: {
+    tabFollowing: 'المتابَعون',
+    tabForYou: 'لك',
+    tagline: 'عالمك. لحظاتك.',
+    like: 'إعجاب',
+    liked: 'أعجبك',
+    comment: 'تعليق',
+    share: 'مشاركة',
+    btnFollow: 'متابعة',
+    btnFollowing: 'تتابعه',
+    shareLink: 'شاهد هذا الفيديو على VYRA: ',
+    shareGeneric: 'انضم إليّ على VYRA - عالمك. لحظاتك.',
+    commentsTitle: 'التعليقات',
+    noComments: 'لا توجد تعليقات بعد. كن أول من يعلّق!',
+    addComment: 'أضف تعليقاً...',
+    send: 'إرسال',
+    home: 'الرئيسية',
+    discover: 'اكتشف',
+    create: 'إنشاء',
+    messages: 'الرسائل',
+    profile: 'حسابي',
+    posts: 'منشورات',
+    followers: 'متابعون',
+    followingCount: 'يتابع',
+    myVideos: 'فيديوهاتي',
+    videosInFeed: 'فيديوهاتك في الصفحة الرئيسية.',
+    videosWillAppear: 'ستظهر فيديوهاتك هنا.',
+    language: 'اللغة',
+    discoverTitle: 'اكتشف 🌍',
+    explore: 'تعرّف على أشخاص من حول العالم',
+    discoverCreator: 'اكتشف المبدع',
+    nameTraveler: 'مسافر حول العالم',
+    nameDaily: 'الحياة اليومية',
+    nameCreator: 'مبدع VYRA',
+    messagesTitle: 'الرسائل ✉️',
+    yourConvos: 'محادثاتك',
+    noMessages: 'لا توجد رسائل بعد.',
+    startConnecting: 'ابدأ بالتواصل مع الناس على VYRA.',
+    createTitle: 'أنشئ على VYRA',
+    chooseVideo: 'اختر فيديو',
+    changeVideo: 'غيّر الفيديو',
+    videoSelected: 'تم اختيار الفيديو ✓',
+    captionPlaceholder: 'اكتب وصفاً...',
+    upload: 'نشر',
+    uploadFailed: 'فشل الرفع:',
+    noVideos: 'لا توجد فيديوهات بعد',
+    followHint: 'تابع مبدعين في «لك» لتظهر فيديوهاتهم هنا.',
+    demo1: 'مرحباً بك في VYRA! 🌍',
+    demo2: 'اكتشف العالم مع VYRA ✈️',
+    demo3: 'شارك أجمل لحظاتك ❤️',
+    originalSound: 'صوت أصلي',
+    travelVibes: 'أجواء السفر',
+    dailyMoments: 'لحظات يومية',
+  },
+  fr: {
+    tabFollowing: 'Abonnements',
+    tabForYou: 'Pour toi',
+    tagline: 'Ton monde. Tes moments.',
+    like: "J'aime",
+    liked: 'Aimé',
+    comment: 'Commenter',
+    share: 'Partager',
+    btnFollow: 'Suivre',
+    btnFollowing: 'Suivi',
+    shareLink: 'Regarde cette vidéo sur VYRA : ',
+    shareGeneric: 'Rejoins-moi sur VYRA - Ton monde. Tes moments.',
+    commentsTitle: 'Commentaires',
+    noComments: 'Pas encore de commentaires. Sois le premier !',
+    addComment: 'Ajouter un commentaire...',
+    send: 'Envoyer',
+    home: 'Accueil',
+    discover: 'Découvrir',
+    create: 'Créer',
+    messages: 'Messages',
+    profile: 'Profil',
+    posts: 'Publications',
+    followers: 'Abonnés',
+    followingCount: 'Abonnements',
+    myVideos: 'Mes vidéos',
+    videosInFeed: "Tes vidéos sont dans le fil d'accueil.",
+    videosWillAppear: 'Tes vidéos apparaîtront ici.',
+    language: 'Langue',
+    discoverTitle: 'Découvrir 🌍',
+    explore: 'Explore des gens du monde entier',
+    discoverCreator: 'Découvrir le créateur',
+    nameTraveler: 'Voyageur du monde',
+    nameDaily: 'Vie quotidienne',
+    nameCreator: 'Créateur VYRA',
+    messagesTitle: 'Messages ✉️',
+    yourConvos: 'Tes conversations',
+    noMessages: 'Aucun message pour le moment.',
+    startConnecting: 'Commence à échanger avec des gens sur VYRA.',
+    createTitle: 'Créer sur VYRA',
+    chooseVideo: 'Choisir une vidéo',
+    changeVideo: 'Changer de vidéo',
+    videoSelected: 'Vidéo sélectionnée ✓',
+    captionPlaceholder: 'Écris une légende...',
+    upload: 'Publier',
+    uploadFailed: "Échec de l'envoi :",
+    noVideos: 'Pas encore de vidéos',
+    followHint: 'Suis des créateurs dans « Pour toi » pour voir leurs vidéos ici.',
+    demo1: 'Bienvenue sur VYRA ! 🌍',
+    demo2: 'Découvre le monde avec VYRA ✈️',
+    demo3: 'Partage tes plus beaux moments ❤️',
+    originalSound: 'Son original',
+    travelVibes: 'Ambiance voyage',
+    dailyMoments: 'Moments du quotidien',
+  },
+};
 
 function VideoPlayer({ url, active }) {
   const player = useVideoPlayer(url, (p) => {
@@ -86,6 +252,21 @@ function AppContent() {
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState('');
   const [commentsLoading, setCommentsLoading] = useState(false);
+  const [lang, setLang] = useState('en');
+  const t = (key) => (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.en[key] || key;
+
+  useEffect(() => {
+    AsyncStorage.getItem('vyra_lang')
+      .then((v) => {
+        if (v && STRINGS[v]) setLang(v);
+      })
+      .catch(() => {});
+  }, []);
+
+  const changeLang = (code) => {
+    setLang(code);
+    AsyncStorage.setItem('vyra_lang', code).catch(() => {});
+  };
   const insets = useSafeAreaInsets();
 
   const videos = [...remote, ...demoVideos];
@@ -177,7 +358,7 @@ function AppContent() {
       setCurrentIndex(0);
       setActiveTab('Home');
     } catch (e) {
-      setStatus('Upload failed: ' + String(e.message).slice(0, 200));
+      setStatus(t('uploadFailed') + ' ' + String(e.message).slice(0, 200));
     }
     setUploading(false);
   };
@@ -186,8 +367,8 @@ function AppContent() {
     try {
       await Share.share({
         message: video.url
-          ? 'Watch this video on VYRA: ' + video.url
-          : 'Join me on VYRA - Your world. Your moments.',
+          ? t('shareLink') + video.url
+          : t('shareGeneric'),
       });
     } catch (e) {
       // share cancelled
@@ -272,7 +453,7 @@ function AppContent() {
               activeFeed === 'Following' && styles.selectedFeed,
             ]}
           >
-            Following
+            {t('tabFollowing')}
           </Text>
         </TouchableOpacity>
 
@@ -283,7 +464,7 @@ function AppContent() {
               activeFeed === 'For You' && styles.selectedFeed,
             ]}
           >
-            For You
+            {t('tabForYou')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -307,14 +488,16 @@ function AppContent() {
       {!video.url && (
         <View style={styles.centerContent}>
           <Text style={styles.videoTitle}>VYRA</Text>
-          <Text style={styles.videoSubtitle}>Your world. Your moments.</Text>
+          <Text style={styles.videoSubtitle}>{t('tagline')}</Text>
         </View>
       )}
 
       <View style={styles.videoInfo}>
         <Text style={styles.username}>@{video.user}</Text>
-        <Text style={styles.description}>{video.description}</Text>
-        <Text style={styles.music}>♫ {video.music}</Text>
+        <Text style={styles.description}>
+          {video.descKey ? t(video.descKey) : video.description}
+        </Text>
+        <Text style={styles.music}>♫ {t(video.musicKey || 'originalSound')}</Text>
       </View>
 
       <View style={styles.actions}>
@@ -326,7 +509,7 @@ function AppContent() {
             {likes[video.id] ? '❤️' : '🤍'}
           </Text>
           <Text style={styles.actionText}>
-            {likes[video.id] ? 'Liked' : 'Like'}
+            {likes[video.id] ? t('liked') : t('like')}
           </Text>
         </TouchableOpacity>
 
@@ -335,7 +518,7 @@ function AppContent() {
           onPress={() => openComments(video)}
         >
           <Text style={styles.actionIcon}>💬</Text>
-          <Text style={styles.actionText}>Comment</Text>
+          <Text style={styles.actionText}>{t('comment')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -343,7 +526,7 @@ function AppContent() {
           onPress={() => shareVideo(video)}
         >
           <Text style={styles.actionIcon}>↗️</Text>
-          <Text style={styles.actionText}>Share</Text>
+          <Text style={styles.actionText}>{t('share')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -352,7 +535,7 @@ function AppContent() {
         >
           <Text style={styles.actionIcon}>+</Text>
           <Text style={styles.actionText}>
-            {following[video.user] ? 'Following' : 'Follow'}
+            {following[video.user] ? t('btnFollowing') : t('btnFollow')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -386,9 +569,9 @@ function AppContent() {
             >
               {renderTop()}
               <View style={styles.centerContent}>
-                <Text style={styles.emptyTitle}>No videos yet</Text>
+                <Text style={styles.emptyTitle}>{t('noVideos')}</Text>
                 <Text style={styles.emptySub}>
-                  Follow creators in For You to see their videos here.
+                  {t('followHint')}
                 </Text>
               </View>
             </View>
@@ -415,29 +598,50 @@ function AppContent() {
                 @vyra_creator
               </Text>
               <Text style={{ color: 'white', marginTop: 25 }}>
-                Your world. Your moments. 🌍
+                {t('tagline')} 🌍
               </Text>
               <Text style={{ color: '#A855F7', marginTop: 30, fontSize: 18 }}>
-                {remote.length} Posts     0 Followers     0 Following
+                {remote.length} {t('posts')}     0 {t('followers')}     0 {t('followingCount')}
               </Text>
               <Text style={{ color: 'white', marginTop: 35 }}>
-                My Videos
+                {t('myVideos')}
               </Text>
               <Text style={{ color: '#999999', marginTop: 15 }}>
                 {remote.length > 0
-                  ? 'Your videos are in the Home feed.'
-                  : 'Your videos will appear here.'}
+                  ? t('videosInFeed')
+                  : t('videosWillAppear')}
               </Text>
+              <Text style={{ color: 'white', marginTop: 35 }}>
+                {t('language')}
+              </Text>
+              <View style={styles.langRow}>
+                {[
+                  ['en', 'English'],
+                  ['ar', 'العربية'],
+                  ['fr', 'Français'],
+                ].map(([code, label]) => (
+                  <TouchableOpacity
+                    key={code}
+                    style={[
+                      styles.langBtn,
+                      lang === code && styles.langBtnActive,
+                    ]}
+                    onPress={() => changeLang(code)}
+                  >
+                    <Text style={styles.langText}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           ) : activeTab === 'Discover' ? (
             <View style={{ marginTop: 35 }}>
               <Text style={{ color: 'white', fontSize: 26, fontWeight: 'bold' }}>
-                Discover 🌍
+                {t('discoverTitle')}
               </Text>
               <Text style={{ color: '#AAAAAA', marginTop: 15 }}>
-                Explore people around the world
+                {t('explore')}
               </Text>
-              {['World Traveler', 'Daily Life', 'VYRA Creator'].map((name, i) => (
+              {['nameTraveler', 'nameDaily', 'nameCreator'].map((k, i) => (
                 <View
                   key={i}
                   style={{
@@ -448,10 +652,10 @@ function AppContent() {
                   }}
                 >
                   <Text style={{ color: 'white', fontSize: 18 }}>
-                    👤 {name}
+                    👤 {t(k)}
                   </Text>
                   <Text style={{ color: '#A855F7', marginTop: 8 }}>
-                    Discover creator
+                    {t('discoverCreator')}
                   </Text>
                 </View>
               ))}
@@ -459,16 +663,16 @@ function AppContent() {
           ) : activeTab === 'Messages' ? (
             <View style={{ marginTop: 35 }}>
               <Text style={{ color: 'white', fontSize: 26, fontWeight: 'bold' }}>
-                Messages ✉️
+                {t('messagesTitle')}
               </Text>
               <Text style={{ color: '#AAAAAA', marginTop: 15 }}>
-                Your conversations
+                {t('yourConvos')}
               </Text>
               <Text style={{ color: 'white', marginTop: 35 }}>
-                No messages yet.
+                {t('noMessages')}
               </Text>
               <Text style={{ color: '#999999', marginTop: 10 }}>
-                Start connecting with people on VYRA.
+                {t('startConnecting')}
               </Text>
             </View>
           ) : activeTab === 'Create' ? (
@@ -481,24 +685,24 @@ function AppContent() {
                   textAlign: 'center',
                 }}
               >
-                Create on VYRA
+                {t('createTitle')}
               </Text>
 
               <TouchableOpacity style={styles.primaryBtn} onPress={pickVideo}>
                 <Text style={styles.primaryBtnText}>
-                  {picked ? 'Change video' : 'Choose a video'}
+                  {picked ? t('changeVideo') : t('chooseVideo')}
                 </Text>
               </TouchableOpacity>
 
               {picked ? (
                 <Text style={{ color: '#CCCCCC', marginTop: 12, textAlign: 'center' }}>
-                  Video selected ✓
+                  {t('videoSelected')}
                 </Text>
               ) : null}
 
               <TextInput
                 style={styles.input}
-                placeholder="Write a caption..."
+                placeholder={t('captionPlaceholder')}
                 placeholderTextColor="#777777"
                 value={description}
                 onChangeText={setDescription}
@@ -516,7 +720,7 @@ function AppContent() {
                 {uploading ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.primaryBtnText}>Upload</Text>
+                  <Text style={styles.primaryBtnText}>{t('upload')}</Text>
                 )}
               </TouchableOpacity>
 
@@ -539,7 +743,7 @@ function AppContent() {
         <KeyboardAvoidingView style={styles.modalWrap} behavior="padding">
           <View style={[styles.sheet, { paddingBottom: insets.bottom + 12 }]}>
             <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Comments</Text>
+              <Text style={styles.sheetTitle}>{t('commentsTitle')}</Text>
               <TouchableOpacity onPress={() => setCommentsFor(null)}>
                 <Text style={styles.sheetClose}>✕</Text>
               </TouchableOpacity>
@@ -550,7 +754,7 @@ function AppContent() {
                 <ActivityIndicator color="#A855F7" style={{ marginTop: 20 }} />
               ) : comments.length === 0 ? (
                 <Text style={styles.noComments}>
-                  No comments yet. Be the first!
+                  {t('noComments')}
                 </Text>
               ) : (
                 comments.map((c) => (
@@ -565,14 +769,14 @@ function AppContent() {
             <View style={styles.commentInputRow}>
               <TextInput
                 style={styles.commentInput}
-                placeholder="Add a comment..."
+                placeholder={t('addComment')}
                 placeholderTextColor="#777777"
                 value={commentText}
                 onChangeText={setCommentText}
                 maxLength={300}
               />
               <TouchableOpacity style={styles.sendBtn} onPress={sendComment}>
-                <Text style={styles.sendBtnText}>Send</Text>
+                <Text style={styles.sendBtnText}>{t('send')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -611,7 +815,7 @@ function AppContent() {
                 activeTab === tab && styles.activeNav,
               ]}
             >
-              {tab}
+              {t(tab.toLowerCase())}
             </Text>
           </TouchableOpacity>
         ))}
@@ -854,6 +1058,28 @@ const styles = StyleSheet.create({
     marginTop: 10,
     textAlign: 'center',
     paddingHorizontal: 40,
+  },
+
+  langRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+
+  langBtn: {
+    backgroundColor: '#202020',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+
+  langBtnActive: {
+    backgroundColor: '#A855F7',
+  },
+
+  langText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
   },
 
   primaryBtn: {
