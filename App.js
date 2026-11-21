@@ -24,15 +24,39 @@ const SUPABASE_KEY = 'sb_publishable_pZGo3ceCADgIYO_NF85Ujw_exlkdErd';
 
 const { width, height } = Dimensions.get('window');
 
+let currentToken = null;
+
 const api = (path, options = {}) =>
   fetch(SUPABASE_URL + '/rest/v1/' + path, {
     ...options,
     headers: {
       apikey: SUPABASE_KEY,
       'Content-Type': 'application/json',
+      ...(currentToken ? { Authorization: 'Bearer ' + currentToken } : {}),
       ...(options.headers || {}),
     },
   });
+
+const authFetch = async (path, body, token) => {
+  const res = await fetch(SUPABASE_URL + '/auth/v1' + path, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: 'Bearer ' + token } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, data };
+};
+
+const toSession = (d) => ({
+  access_token: d.access_token,
+  refresh_token: d.refresh_token,
+  expires_at: Math.floor(Date.now() / 1000) + (d.expires_in || 3600),
+  user: d.user,
+});
 
 const formatCount = (n) => {
   if (n >= 1000000) return (n / 1000000).toFixed(1).replace('.0', '') + 'M';
@@ -91,6 +115,23 @@ const STRINGS = {
     noVideos: 'No videos yet',
     followHint: 'Follow creators in For You to see their videos here.',
     tagline: 'Your world. Your moments.',
+    login: 'Log in',
+    register: 'Sign up',
+    email: 'Email',
+    password: 'Password',
+    username: 'Username',
+    noAccount: "Don't have an account? Sign up",
+    haveAccount: 'Already have an account? Log in',
+    adultConfirm: 'I confirm that I am 18 or older',
+    logout: 'Log out',
+    errUsername: 'Username: 3-20 characters, lowercase letters, numbers and _ only.',
+    errEmail: 'Enter a valid email.',
+    errPassword: 'Password must be at least 8 characters.',
+    errAdult: 'You must be 18 or older to join.',
+    errLogin: 'Wrong email or password.',
+    usernameTaken: 'This username is already taken.',
+    confirmEmail: 'Check your email to confirm your account, then log in.',
+    errGeneric: 'Something went wrong. Try again.',
     demo1: 'Welcome to VYRA! 🌍',
     demo2: 'Discover the world with VYRA ✈️',
     demo3: 'Share your best moments ❤️',
@@ -148,6 +189,23 @@ const STRINGS = {
     noVideos: 'لا توجد فيديوهات بعد',
     followHint: 'تابع مبدعين في «لك» لتظهر فيديوهاتهم هنا.',
     tagline: 'عالمك. لحظاتك.',
+    login: 'تسجيل الدخول',
+    register: 'إنشاء حساب',
+    email: 'البريد الإلكتروني',
+    password: 'كلمة السر',
+    username: 'اسم المستخدم',
+    noAccount: 'ليس لديك حساب؟ أنشئ حساباً',
+    haveAccount: 'لديك حساب؟ سجّل الدخول',
+    adultConfirm: 'أؤكد أن عمري 18 سنة أو أكثر',
+    logout: 'تسجيل الخروج',
+    errUsername: 'اسم المستخدم من 3 إلى 20 حرفاً: أحرف إنجليزية صغيرة وأرقام و _ فقط.',
+    errEmail: 'أدخل بريداً إلكترونياً صحيحاً.',
+    errPassword: 'كلمة السر 8 أحرف على الأقل.',
+    errAdult: 'يجب أن يكون عمرك 18 سنة أو أكثر للانضمام.',
+    errLogin: 'البريد أو كلمة السر غير صحيحة.',
+    usernameTaken: 'اسم المستخدم مستخدم من قبل.',
+    confirmEmail: 'افتح بريدك لتأكيد الحساب ثم سجّل الدخول.',
+    errGeneric: 'حدث خطأ. حاول مرة أخرى.',
     demo1: 'مرحباً بك في VYRA! 🌍',
     demo2: 'اكتشف العالم مع VYRA ✈️',
     demo3: 'شارك أجمل لحظاتك ❤️',
@@ -205,6 +263,23 @@ const STRINGS = {
     noVideos: 'Pas encore de vidéos',
     followHint: 'Suis des créateurs dans « Pour toi » pour voir leurs vidéos ici.',
     tagline: 'Ton monde. Tes moments.',
+    login: 'Se connecter',
+    register: "S'inscrire",
+    email: 'E-mail',
+    password: 'Mot de passe',
+    username: "Nom d'utilisateur",
+    noAccount: "Pas de compte ? S'inscrire",
+    haveAccount: 'Déjà un compte ? Se connecter',
+    adultConfirm: "Je confirme avoir 18 ans ou plus",
+    logout: 'Se déconnecter',
+    errUsername: "Nom d'utilisateur : 3 à 20 caractères, minuscules, chiffres et _ uniquement.",
+    errEmail: 'Entre un e-mail valide.',
+    errPassword: 'Le mot de passe doit faire au moins 8 caractères.',
+    errAdult: 'Tu dois avoir 18 ans ou plus pour rejoindre VYRA.',
+    errLogin: 'E-mail ou mot de passe incorrect.',
+    usernameTaken: "Ce nom d'utilisateur est déjà pris.",
+    confirmEmail: 'Vérifie ton e-mail pour confirmer ton compte, puis connecte-toi.',
+    errGeneric: "Une erreur s'est produite. Réessaie.",
     demo1: 'Bienvenue sur VYRA ! 🌍',
     demo2: 'Découvre le monde avec VYRA ✈️',
     demo3: 'Partage tes plus beaux moments ❤️',
@@ -270,6 +345,200 @@ function VideoPlayer({ url, active }) {
   );
 }
 
+function AuthScreen({ t, lang, changeLang, onSession }) {
+  const insets = useSafeAreaInsets();
+  const [mode, setMode] = useState('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [adult, setAdult] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
+
+  const readError = (data) => {
+    const m = String(
+      (data && (data.msg || data.error_description || data.message || data.error)) || ''
+    );
+    if (m.toLowerCase().includes('invalid login')) return t('errLogin');
+    return m || t('errGeneric');
+  };
+
+  const submit = async () => {
+    setError('');
+    setInfo('');
+    const mail = email.trim().toLowerCase();
+    if (!mail.includes('@') || mail.length < 5) {
+      setError(t('errEmail'));
+      return;
+    }
+
+    if (mode === 'login') {
+      if (!password) {
+        setError(t('errPassword'));
+        return;
+      }
+      setLoading(true);
+      try {
+        const r = await authFetch('/token?grant_type=password', {
+          email: mail,
+          password: password,
+        });
+        if (!r.ok) setError(readError(r.data));
+        else onSession(toSession(r.data));
+      } catch (e) {
+        setError(t('errGeneric'));
+      }
+      setLoading(false);
+      return;
+    }
+
+    const name = username.trim().toLowerCase();
+    if (!/^[a-z0-9_]{3,20}$/.test(name)) {
+      setError(t('errUsername'));
+      return;
+    }
+    if (password.length < 8) {
+      setError(t('errPassword'));
+      return;
+    }
+    if (!adult) {
+      setError(t('errAdult'));
+      return;
+    }
+    setLoading(true);
+    try {
+      const check = await fetch(
+        SUPABASE_URL + '/rest/v1/profiles?select=id&username=eq.' + encodeURIComponent(name),
+        { headers: { apikey: SUPABASE_KEY } }
+      );
+      const rows = await check.json();
+      if (Array.isArray(rows) && rows.length > 0) {
+        setError(t('usernameTaken'));
+        setLoading(false);
+        return;
+      }
+      const r = await authFetch('/signup', {
+        email: mail,
+        password: password,
+        data: { username: name, adult_confirmed: true },
+      });
+      if (!r.ok) setError(readError(r.data));
+      else if (r.data.access_token) onSession(toSession(r.data));
+      else setInfo(t('confirmEmail'));
+    } catch (e) {
+      setError(t('errGeneric'));
+    }
+    setLoading(false);
+  };
+
+  return (
+    <KeyboardAvoidingView
+      style={[styles.container, { paddingTop: insets.top }]}
+      behavior="padding"
+    >
+      <ScrollView
+        contentContainerStyle={styles.authWrap}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.authLogo}>VYRA</Text>
+        <Text style={styles.authTagline}>{t('tagline')}</Text>
+        <Text style={styles.authTitle}>
+          {mode === 'login' ? t('login') : t('register')}
+        </Text>
+
+        {mode === 'register' && (
+          <TextInput
+            style={styles.authInput}
+            placeholder={t('username')}
+            placeholderTextColor="#777777"
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={20}
+          />
+        )}
+
+        <TextInput
+          style={styles.authInput}
+          placeholder={t('email')}
+          placeholderTextColor="#777777"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+        />
+
+        <TextInput
+          style={styles.authInput}
+          placeholder={t('password')}
+          placeholderTextColor="#777777"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoCapitalize="none"
+        />
+
+        {mode === 'register' && (
+          <TouchableOpacity style={styles.checkRow} onPress={() => setAdult(!adult)}>
+            <View style={[styles.checkBox, adult && styles.checkBoxOn]}>
+              {adult ? <Text style={{ color: '#FFFFFF', fontWeight: 'bold' }}>✓</Text> : null}
+            </View>
+            <Text style={styles.checkText}>{t('adultConfirm')}</Text>
+          </TouchableOpacity>
+        )}
+
+        {error ? <Text style={styles.authError}>{error}</Text> : null}
+        {info ? <Text style={styles.authInfo}>{info}</Text> : null}
+
+        <TouchableOpacity
+          style={[styles.primaryBtn, { opacity: loading ? 0.6 : 1 }]}
+          disabled={loading}
+          onPress={submit}
+        >
+          {loading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.primaryBtnText}>
+              {mode === 'login' ? t('login') : t('register')}
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => {
+            setMode(mode === 'login' ? 'register' : 'login');
+            setError('');
+            setInfo('');
+          }}
+        >
+          <Text style={styles.authSwitch}>
+            {mode === 'login' ? t('noAccount') : t('haveAccount')}
+          </Text>
+        </TouchableOpacity>
+
+        <View style={[styles.langRow, { justifyContent: 'center', marginTop: 30 }]}>
+          {[
+            ['fr', 'Français'],
+            ['ar', 'العربية'],
+            ['en', 'English'],
+          ].map(([code, label]) => (
+            <TouchableOpacity
+              key={code}
+              style={[styles.langBtn, lang === code && styles.langBtnActive]}
+              onPress={() => changeLang(code)}
+            >
+              <Text style={styles.langText}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
 function AppContent() {
   const [activeTab, setActiveTab] = useState('Home');
   const [activeFeed, setActiveFeed] = useState('forYou');
@@ -277,7 +546,8 @@ function AppContent() {
   const [following, setFollowing] = useState({});
   const [myLikes, setMyLikes] = useState({});
   const [stats, setStats] = useState({});
-  const [deviceId, setDeviceId] = useState(null);
+  const [session, setSession] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
   const [pageHeight, setPageHeight] = useState(height - 85);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [remote, setRemote] = useState([]);
@@ -292,6 +562,48 @@ function AppContent() {
   const insets = useSafeAreaInsets();
 
   const t = (key) => (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.en[key] || key;
+
+  const me = session ? session.user : null;
+  const myId = me ? me.id : null;
+  const myName = (me && me.user_metadata && me.user_metadata.username) || 'user';
+
+  const saveSession = async (sess) => {
+    currentToken = sess.access_token;
+    setSession(sess);
+    try {
+      await AsyncStorage.setItem('vyra_session', JSON.stringify(sess));
+    } catch (e) {
+      // not saved
+    }
+  };
+
+  const logout = async () => {
+    try {
+      if (currentToken) await authFetch('/logout', null, currentToken);
+    } catch (e) {
+      // ignore
+    }
+    currentToken = null;
+    setSession(null);
+    setMyLikes({});
+    setActiveTab('Home');
+    AsyncStorage.removeItem('vyra_session').catch(() => {});
+  };
+
+  const ensureToken = async () => {
+    if (!session) return null;
+    if (session.expires_at - 30 > Date.now() / 1000) return session.access_token;
+    const r = await authFetch('/token?grant_type=refresh_token', {
+      refresh_token: session.refresh_token,
+    });
+    if (r.ok) {
+      const fresh = toSession(r.data);
+      await saveSession(fresh);
+      return fresh.access_token;
+    }
+    await logout();
+    return null;
+  };
 
   const videos = [...remote, ...demoVideos];
   const countOf = (id) => stats[id] || { likes: 0, comments: 0 };
@@ -313,6 +625,7 @@ function AppContent() {
           data.map((v) => ({
             id: 'r' + v.id,
             user: v.username,
+            user_id: v.user_id,
             description: v.description || '',
             musicKey: 'originalSound',
             color: '#1A1A2E',
@@ -351,23 +664,30 @@ function AppContent() {
         if (l && STRINGS[l]) setLang(l);
         const f = await AsyncStorage.getItem('vyra_following');
         if (f) setFollowing(JSON.parse(f));
-        let d = await AsyncStorage.getItem('vyra_device');
-        if (!d) {
-          d = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
-          await AsyncStorage.setItem('vyra_device', d);
+        const raw = await AsyncStorage.getItem('vyra_session');
+        if (raw) {
+          let sess = JSON.parse(raw);
+          if (sess.expires_at - 60 < Date.now() / 1000) {
+            const r = await authFetch('/token?grant_type=refresh_token', {
+              refresh_token: sess.refresh_token,
+            });
+            sess = r.ok ? toSession(r.data) : null;
+          }
+          if (sess) await saveSession(sess);
+          else await AsyncStorage.removeItem('vyra_session');
         }
-        setDeviceId(d);
       } catch (e) {
-        setDeviceId('u' + Math.random().toString(36).slice(2, 12));
+        // start logged out
       }
+      setAuthReady(true);
     })();
     loadVideos();
     loadStats();
   }, [loadVideos, loadStats]);
 
   useEffect(() => {
-    if (!deviceId) return;
-    api('likes?select=video_id&device_id=eq.' + encodeURIComponent(deviceId))
+    if (!myId) return;
+    api('likes?select=video_id&user_id=eq.' + myId)
       .then((r) => r.json())
       .then((rows) => {
         if (Array.isArray(rows)) {
@@ -379,7 +699,7 @@ function AppContent() {
         }
       })
       .catch(() => {});
-  }, [deviceId]);
+  }, [myId]);
 
   const changeLang = (code) => {
     setLang(code);
@@ -400,7 +720,8 @@ function AppContent() {
   };
 
   const toggleLike = async (video) => {
-    if (!deviceId) return;
+    const token = await ensureToken();
+    if (!token || !myId) return;
     const id = video.id;
     const liked = !!myLikes[id];
     setMyLikes((p) => ({ ...p, [id]: !liked }));
@@ -414,17 +735,14 @@ function AppContent() {
     try {
       if (liked) {
         await api(
-          'likes?video_id=eq.' +
-            encodeURIComponent(id) +
-            '&device_id=eq.' +
-            encodeURIComponent(deviceId),
+          'likes?video_id=eq.' + encodeURIComponent(id) + '&user_id=eq.' + myId,
           { method: 'DELETE' }
         );
       } else {
         await api('likes', {
           method: 'POST',
           headers: { Prefer: 'return=minimal' },
-          body: JSON.stringify({ video_id: id, device_id: deviceId }),
+          body: JSON.stringify({ video_id: id, user_id: myId }),
         });
       }
     } catch (e) {
@@ -467,6 +785,8 @@ function AppContent() {
     const text = commentText.trim();
     if (!text || !commentsFor) return;
     const vid = commentsFor;
+    const token = await ensureToken();
+    if (!token) return;
     setCommentText('');
     try {
       const res = await api('comments', {
@@ -474,7 +794,8 @@ function AppContent() {
         headers: { Prefer: 'return=representation' },
         body: JSON.stringify({
           video_id: vid,
-          username: 'vyra_creator',
+          user_id: myId,
+          username: myName,
           content: text,
         }),
       });
@@ -511,12 +832,18 @@ function AppContent() {
       const fileName = Date.now() + '.' + ext;
       const mime = picked.mimeType || 'video/mp4';
 
+      const token = await ensureToken();
+      if (!token) throw new Error('login required');
       const blob = await (await fetch(picked.uri)).blob();
       const up = await fetch(
         SUPABASE_URL + '/storage/v1/object/videos/' + fileName,
         {
           method: 'POST',
-          headers: { apikey: SUPABASE_KEY, 'Content-Type': mime },
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: 'Bearer ' + token,
+            'Content-Type': mime,
+          },
           body: blob,
         }
       );
@@ -528,7 +855,8 @@ function AppContent() {
         method: 'POST',
         headers: { Prefer: 'return=minimal' },
         body: JSON.stringify({
-          username: 'vyra_creator',
+          username: myName,
+          user_id: myId,
           description: description,
           video_url: publicUrl,
         }),
@@ -694,6 +1022,30 @@ function AppContent() {
     </View>
   );
 
+  if (!authReady) {
+    return (
+      <View
+        style={[
+          styles.container,
+          { alignItems: 'center', justifyContent: 'center' },
+        ]}
+      >
+        <ActivityIndicator color="#A855F7" size="large" />
+      </View>
+    );
+  }
+
+  if (!session) {
+    return (
+      <AuthScreen
+        t={t}
+        lang={lang}
+        changeLang={changeLang}
+        onSession={saveSession}
+      />
+    );
+  }
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar barStyle="light-content" />
@@ -827,10 +1179,10 @@ function AppContent() {
                 <Text style={{ fontSize: 40 }}>👤</Text>
               </View>
               <Text style={{ color: 'white', fontSize: 22, fontWeight: 'bold', marginTop: 12 }}>
-                @vyra_creator
+                @{myName}
               </Text>
               <Text style={{ color: '#A855F7', marginTop: 18, fontSize: 16 }}>
-                {remote.length} {t('posts')}     {friendList.length} {t('followingCount')}
+                {remote.filter((v) => v.user_id === myId).length} {t('posts')}     {friendList.length} {t('followingCount')}
               </Text>
 
               <TouchableOpacity
@@ -861,6 +1213,10 @@ function AppContent() {
                   </TouchableOpacity>
                 ))}
               </View>
+
+              <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+                <Text style={styles.logoutText}>{t('logout')}</Text>
+              </TouchableOpacity>
             </View>
           )}
         </ScrollView>
@@ -1406,6 +1762,101 @@ const styles = StyleSheet.create({
   },
 
   sendBtnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+
+  authWrap: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+
+  authLogo: {
+    color: '#A855F7',
+    fontSize: 48,
+    fontWeight: '900',
+    letterSpacing: 4,
+    textAlign: 'center',
+  },
+
+  authTagline: {
+    color: '#AAAAAA',
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 30,
+  },
+
+  authTitle: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+
+  authInput: {
+    backgroundColor: '#202020',
+    color: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginTop: 14,
+    fontSize: 15,
+  },
+
+  authError: {
+    color: '#FF6B6B',
+    marginTop: 14,
+  },
+
+  authInfo: {
+    color: '#7CE3A1',
+    marginTop: 14,
+  },
+
+  authSwitch: {
+    color: '#C9B8F0',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+
+  checkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+  },
+
+  checkBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#A855F7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+
+  checkBoxOn: {
+    backgroundColor: '#A855F7',
+  },
+
+  checkText: {
+    color: '#DDDDDD',
+    flex: 1,
+  },
+
+  logoutBtn: {
+    marginTop: 30,
+    borderWidth: 1.5,
+    borderColor: '#F43F9E',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+  },
+
+  logoutText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
