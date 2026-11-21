@@ -24,6 +24,196 @@ const SUPABASE_KEY = 'sb_publishable_pZGo3ceCADgIYO_NF85Ujw_exlkdErd';
 
 const { width, height } = Dimensions.get('window');
 
+const api = (path, options = {}) =>
+  fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    ...options,
+    headers: {
+      apikey: SUPABASE_KEY,
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+  });
+
+const formatCount = (n) => {
+  if (n >= 1000000) return (n / 1000000).toFixed(1).replace('.0', '') + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1).replace('.0', '') + 'K';
+  return String(n);
+};
+
+const STRINGS = {
+  en: {
+    tabForYou: 'For You',
+    tabFollowing: 'Following',
+    tabTrending: 'Trending',
+    points: 'Points',
+    level: 'Level',
+    btnFollow: 'Follow',
+    btnFollowing: 'Following',
+    share: 'Share',
+    shareLink: 'Watch this video on VYRA: ',
+    shareGeneric: 'Join me on VYRA - Your world. Your moments.',
+    commentsTitle: 'Comments',
+    noComments: 'No comments yet. Be the first!',
+    addComment: 'Add a comment...',
+    send: 'Send',
+    navHome: 'Home',
+    navFriends: 'Friends',
+    navFollow: 'Follow',
+    navLive: 'LIVE',
+    navChat: 'Chat',
+    navProfile: 'Profile',
+    posts: 'Posts',
+    followers: 'Followers',
+    followingCount: 'Following',
+    myVideos: 'My Videos',
+    videosInFeed: 'Your videos are in the Home feed.',
+    videosWillAppear: 'Your videos will appear here.',
+    language: 'Language',
+    publishVideo: '＋ Post a video',
+    discoverTitle: 'Discover creators',
+    explore: 'Follow creators to see their videos',
+    friendsTitle: 'Friends',
+    friendsEmpty: 'Follow creators to find them here.',
+    messagesTitle: 'Chat ✉️',
+    yourConvos: 'Your conversations',
+    noMessages: 'No messages yet.',
+    startConnecting: 'Start connecting with people on VYRA.',
+    liveTitle: 'LIVE',
+    liveSoon: 'Live streaming is coming soon.',
+    liveInfo: 'Go live and talk with people around the world, with real-time subtitles.',
+    createTitle: 'Post on VYRA',
+    chooseVideo: 'Choose a video',
+    changeVideo: 'Change video',
+    videoSelected: 'Video selected ✓',
+    captionPlaceholder: 'Write a caption...',
+    upload: 'Upload',
+    uploadFailed: 'Upload failed:',
+    noVideos: 'No videos yet',
+    followHint: 'Follow creators in For You to see their videos here.',
+    tagline: 'Your world. Your moments.',
+    demo1: 'Welcome to VYRA! 🌍',
+    demo2: 'Discover the world with VYRA ✈️',
+    demo3: 'Share your best moments ❤️',
+    originalSound: 'Original sound',
+    travelVibes: 'Travel vibes',
+    dailyMoments: 'Daily moments',
+  },
+  ar: {
+    tabForYou: 'لك',
+    tabFollowing: 'المتابَعون',
+    tabTrending: 'الرائج',
+    points: 'نقاط',
+    level: 'المستوى',
+    btnFollow: 'متابعة',
+    btnFollowing: 'تتابعه',
+    share: 'مشاركة',
+    shareLink: 'شاهد هذا الفيديو على VYRA: ',
+    shareGeneric: 'انضم إليّ على VYRA - عالمك. لحظاتك.',
+    commentsTitle: 'التعليقات',
+    noComments: 'لا توجد تعليقات بعد. كن أول من يعلّق!',
+    addComment: 'أضف تعليقاً...',
+    send: 'إرسال',
+    navHome: 'الرئيسية',
+    navFriends: 'الأصدقاء',
+    navFollow: 'متابعة',
+    navLive: 'مباشر',
+    navChat: 'الدردشة',
+    navProfile: 'حسابي',
+    posts: 'منشورات',
+    followers: 'متابعون',
+    followingCount: 'يتابع',
+    myVideos: 'فيديوهاتي',
+    videosInFeed: 'فيديوهاتك في الصفحة الرئيسية.',
+    videosWillAppear: 'ستظهر فيديوهاتك هنا.',
+    language: 'اللغة',
+    publishVideo: '＋ انشر فيديو',
+    discoverTitle: 'اكتشف المبدعين',
+    explore: 'تابع المبدعين لتشاهد فيديوهاتهم',
+    friendsTitle: 'الأصدقاء',
+    friendsEmpty: 'تابع مبدعين لتجدهم هنا.',
+    messagesTitle: 'الدردشة ✉️',
+    yourConvos: 'محادثاتك',
+    noMessages: 'لا توجد رسائل بعد.',
+    startConnecting: 'ابدأ بالتواصل مع الناس على VYRA.',
+    liveTitle: 'مباشر',
+    liveSoon: 'البث المباشر قادم قريباً.',
+    liveInfo: 'ابدأ بثاً مباشراً وتحدث مع الناس حول العالم، مع ترجمة فورية مكتوبة.',
+    createTitle: 'انشر على VYRA',
+    chooseVideo: 'اختر فيديو',
+    changeVideo: 'غيّر الفيديو',
+    videoSelected: 'تم اختيار الفيديو ✓',
+    captionPlaceholder: 'اكتب وصفاً...',
+    upload: 'نشر',
+    uploadFailed: 'فشل الرفع:',
+    noVideos: 'لا توجد فيديوهات بعد',
+    followHint: 'تابع مبدعين في «لك» لتظهر فيديوهاتهم هنا.',
+    tagline: 'عالمك. لحظاتك.',
+    demo1: 'مرحباً بك في VYRA! 🌍',
+    demo2: 'اكتشف العالم مع VYRA ✈️',
+    demo3: 'شارك أجمل لحظاتك ❤️',
+    originalSound: 'صوت أصلي',
+    travelVibes: 'أجواء السفر',
+    dailyMoments: 'لحظات يومية',
+  },
+  fr: {
+    tabForYou: 'Pour toi',
+    tabFollowing: 'Suivis',
+    tabTrending: 'Tendances',
+    points: 'Points',
+    level: 'Niveau',
+    btnFollow: 'Suivre',
+    btnFollowing: 'Suivi',
+    share: 'Partager',
+    shareLink: 'Regarde cette vidéo sur VYRA : ',
+    shareGeneric: 'Rejoins-moi sur VYRA - Ton monde. Tes moments.',
+    commentsTitle: 'Commentaires',
+    noComments: 'Pas encore de commentaires. Sois le premier !',
+    addComment: 'Ajouter un commentaire...',
+    send: 'Envoyer',
+    navHome: 'Accueil',
+    navFriends: 'Amis',
+    navFollow: 'Suivre',
+    navLive: 'LIVE',
+    navChat: 'Chat',
+    navProfile: 'Profil',
+    posts: 'Publications',
+    followers: 'Abonnés',
+    followingCount: 'Abonnements',
+    myVideos: 'Mes vidéos',
+    videosInFeed: "Tes vidéos sont dans le fil d'accueil.",
+    videosWillAppear: 'Tes vidéos apparaîtront ici.',
+    language: 'Langue',
+    publishVideo: '＋ Publier une vidéo',
+    discoverTitle: 'Découvrir des créateurs',
+    explore: 'Suis des créateurs pour voir leurs vidéos',
+    friendsTitle: 'Amis',
+    friendsEmpty: 'Suis des créateurs pour les retrouver ici.',
+    messagesTitle: 'Chat ✉️',
+    yourConvos: 'Tes conversations',
+    noMessages: 'Aucun message pour le moment.',
+    startConnecting: 'Commence à échanger avec des gens sur VYRA.',
+    liveTitle: 'LIVE',
+    liveSoon: 'Le direct arrive bientôt.',
+    liveInfo: 'Passe en direct et parle avec des gens du monde entier, avec sous-titres en temps réel.',
+    createTitle: 'Publier sur VYRA',
+    chooseVideo: 'Choisir une vidéo',
+    changeVideo: 'Changer de vidéo',
+    videoSelected: 'Vidéo sélectionnée ✓',
+    captionPlaceholder: 'Écris une légende...',
+    upload: 'Publier',
+    uploadFailed: "Échec de l'envoi :",
+    noVideos: 'Pas encore de vidéos',
+    followHint: 'Suis des créateurs dans « Pour toi » pour voir leurs vidéos ici.',
+    tagline: 'Ton monde. Tes moments.',
+    demo1: 'Bienvenue sur VYRA ! 🌍',
+    demo2: 'Découvre le monde avec VYRA ✈️',
+    demo3: 'Partage tes plus beaux moments ❤️',
+    originalSound: 'Son original',
+    travelVibes: 'Ambiance voyage',
+    dailyMoments: 'Moments du quotidien',
+  },
+};
+
 const demoVideos = [
   {
     id: 'd1',
@@ -48,170 +238,14 @@ const demoVideos = [
   },
 ];
 
-const STRINGS = {
-  en: {
-    tabFollowing: 'Following',
-    tabForYou: 'For You',
-    tagline: 'Your world. Your moments.',
-    like: 'Like',
-    liked: 'Liked',
-    comment: 'Comment',
-    share: 'Share',
-    btnFollow: 'Follow',
-    btnFollowing: 'Following',
-    shareLink: 'Watch this video on VYRA: ',
-    shareGeneric: 'Join me on VYRA - Your world. Your moments.',
-    commentsTitle: 'Comments',
-    noComments: 'No comments yet. Be the first!',
-    addComment: 'Add a comment...',
-    send: 'Send',
-    home: 'Home',
-    discover: 'Discover',
-    create: 'Create',
-    messages: 'Messages',
-    profile: 'Profile',
-    posts: 'Posts',
-    followers: 'Followers',
-    followingCount: 'Following',
-    myVideos: 'My Videos',
-    videosInFeed: 'Your videos are in the Home feed.',
-    videosWillAppear: 'Your videos will appear here.',
-    language: 'Language',
-    discoverTitle: 'Discover 🌍',
-    explore: 'Explore people around the world',
-    discoverCreator: 'Discover creator',
-    nameTraveler: 'World Traveler',
-    nameDaily: 'Daily Life',
-    nameCreator: 'VYRA Creator',
-    messagesTitle: 'Messages ✉️',
-    yourConvos: 'Your conversations',
-    noMessages: 'No messages yet.',
-    startConnecting: 'Start connecting with people on VYRA.',
-    createTitle: 'Create on VYRA',
-    chooseVideo: 'Choose a video',
-    changeVideo: 'Change video',
-    videoSelected: 'Video selected ✓',
-    captionPlaceholder: 'Write a caption...',
-    upload: 'Upload',
-    uploadFailed: 'Upload failed:',
-    noVideos: 'No videos yet',
-    followHint: 'Follow creators in For You to see their videos here.',
-    demo1: 'Welcome to VYRA! 🌍',
-    demo2: 'Discover the world with VYRA ✈️',
-    demo3: 'Share your best moments ❤️',
-    originalSound: 'Original sound',
-    travelVibes: 'Travel vibes',
-    dailyMoments: 'Daily moments',
-  },
-  ar: {
-    tabFollowing: 'المتابَعون',
-    tabForYou: 'لك',
-    tagline: 'عالمك. لحظاتك.',
-    like: 'إعجاب',
-    liked: 'أعجبك',
-    comment: 'تعليق',
-    share: 'مشاركة',
-    btnFollow: 'متابعة',
-    btnFollowing: 'تتابعه',
-    shareLink: 'شاهد هذا الفيديو على VYRA: ',
-    shareGeneric: 'انضم إليّ على VYRA - عالمك. لحظاتك.',
-    commentsTitle: 'التعليقات',
-    noComments: 'لا توجد تعليقات بعد. كن أول من يعلّق!',
-    addComment: 'أضف تعليقاً...',
-    send: 'إرسال',
-    home: 'الرئيسية',
-    discover: 'اكتشف',
-    create: 'إنشاء',
-    messages: 'الرسائل',
-    profile: 'حسابي',
-    posts: 'منشورات',
-    followers: 'متابعون',
-    followingCount: 'يتابع',
-    myVideos: 'فيديوهاتي',
-    videosInFeed: 'فيديوهاتك في الصفحة الرئيسية.',
-    videosWillAppear: 'ستظهر فيديوهاتك هنا.',
-    language: 'اللغة',
-    discoverTitle: 'اكتشف 🌍',
-    explore: 'تعرّف على أشخاص من حول العالم',
-    discoverCreator: 'اكتشف المبدع',
-    nameTraveler: 'مسافر حول العالم',
-    nameDaily: 'الحياة اليومية',
-    nameCreator: 'مبدع VYRA',
-    messagesTitle: 'الرسائل ✉️',
-    yourConvos: 'محادثاتك',
-    noMessages: 'لا توجد رسائل بعد.',
-    startConnecting: 'ابدأ بالتواصل مع الناس على VYRA.',
-    createTitle: 'أنشئ على VYRA',
-    chooseVideo: 'اختر فيديو',
-    changeVideo: 'غيّر الفيديو',
-    videoSelected: 'تم اختيار الفيديو ✓',
-    captionPlaceholder: 'اكتب وصفاً...',
-    upload: 'نشر',
-    uploadFailed: 'فشل الرفع:',
-    noVideos: 'لا توجد فيديوهات بعد',
-    followHint: 'تابع مبدعين في «لك» لتظهر فيديوهاتهم هنا.',
-    demo1: 'مرحباً بك في VYRA! 🌍',
-    demo2: 'اكتشف العالم مع VYRA ✈️',
-    demo3: 'شارك أجمل لحظاتك ❤️',
-    originalSound: 'صوت أصلي',
-    travelVibes: 'أجواء السفر',
-    dailyMoments: 'لحظات يومية',
-  },
-  fr: {
-    tabFollowing: 'Abonnements',
-    tabForYou: 'Pour toi',
-    tagline: 'Ton monde. Tes moments.',
-    like: "J'aime",
-    liked: 'Aimé',
-    comment: 'Commenter',
-    share: 'Partager',
-    btnFollow: 'Suivre',
-    btnFollowing: 'Suivi',
-    shareLink: 'Regarde cette vidéo sur VYRA : ',
-    shareGeneric: 'Rejoins-moi sur VYRA - Ton monde. Tes moments.',
-    commentsTitle: 'Commentaires',
-    noComments: 'Pas encore de commentaires. Sois le premier !',
-    addComment: 'Ajouter un commentaire...',
-    send: 'Envoyer',
-    home: 'Accueil',
-    discover: 'Découvrir',
-    create: 'Créer',
-    messages: 'Messages',
-    profile: 'Profil',
-    posts: 'Publications',
-    followers: 'Abonnés',
-    followingCount: 'Abonnements',
-    myVideos: 'Mes vidéos',
-    videosInFeed: "Tes vidéos sont dans le fil d'accueil.",
-    videosWillAppear: 'Tes vidéos apparaîtront ici.',
-    language: 'Langue',
-    discoverTitle: 'Découvrir 🌍',
-    explore: 'Explore des gens du monde entier',
-    discoverCreator: 'Découvrir le créateur',
-    nameTraveler: 'Voyageur du monde',
-    nameDaily: 'Vie quotidienne',
-    nameCreator: 'Créateur VYRA',
-    messagesTitle: 'Messages ✉️',
-    yourConvos: 'Tes conversations',
-    noMessages: 'Aucun message pour le moment.',
-    startConnecting: 'Commence à échanger avec des gens sur VYRA.',
-    createTitle: 'Créer sur VYRA',
-    chooseVideo: 'Choisir une vidéo',
-    changeVideo: 'Changer de vidéo',
-    videoSelected: 'Vidéo sélectionnée ✓',
-    captionPlaceholder: 'Écris une légende...',
-    upload: 'Publier',
-    uploadFailed: "Échec de l'envoi :",
-    noVideos: 'Pas encore de vidéos',
-    followHint: 'Suis des créateurs dans « Pour toi » pour voir leurs vidéos ici.',
-    demo1: 'Bienvenue sur VYRA ! 🌍',
-    demo2: 'Découvre le monde avec VYRA ✈️',
-    demo3: 'Partage tes plus beaux moments ❤️',
-    originalSound: 'Son original',
-    travelVibes: 'Ambiance voyage',
-    dailyMoments: 'Moments du quotidien',
-  },
-};
+const NAV = [
+  ['Home', '🏠', 'navHome'],
+  ['Friends', '👥', 'navFriends'],
+  ['Follow', '➕', 'navFollow'],
+  ['Live', '📡', 'navLive'],
+  ['Chat', '💬', 'navChat'],
+  ['Profile', '👤', 'navProfile'],
+];
 
 function VideoPlayer({ url, active }) {
   const player = useVideoPlayer(url, (p) => {
@@ -238,9 +272,12 @@ function VideoPlayer({ url, active }) {
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState('Home');
+  const [activeFeed, setActiveFeed] = useState('forYou');
+  const [lang, setLang] = useState('fr');
   const [following, setFollowing] = useState({});
-  const [likes, setLikes] = useState({});
-  const [activeFeed, setActiveFeed] = useState('For You');
+  const [myLikes, setMyLikes] = useState({});
+  const [stats, setStats] = useState({});
+  const [deviceId, setDeviceId] = useState(null);
   const [pageHeight, setPageHeight] = useState(height - 85);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [remote, setRemote] = useState([]);
@@ -252,35 +289,24 @@ function AppContent() {
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState('');
   const [commentsLoading, setCommentsLoading] = useState(false);
-  const [lang, setLang] = useState('en');
-  const t = (key) => (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.en[key] || key;
-
-  useEffect(() => {
-    AsyncStorage.getItem('vyra_lang')
-      .then((v) => {
-        if (v && STRINGS[v]) setLang(v);
-      })
-      .catch(() => {});
-  }, []);
-
-  const changeLang = (code) => {
-    setLang(code);
-    AsyncStorage.setItem('vyra_lang', code).catch(() => {});
-  };
   const insets = useSafeAreaInsets();
 
+  const t = (key) => (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.en[key] || key;
+
   const videos = [...remote, ...demoVideos];
+  const countOf = (id) => stats[id] || { likes: 0, comments: 0 };
+  const score = (v) => countOf(v.id).likes * 2 + countOf(v.id).comments;
+
   const feedVideos =
-    activeFeed === 'Following'
+    activeFeed === 'following'
       ? videos.filter((v) => following[v.user])
+      : activeFeed === 'trending'
+      ? [...videos].sort((a, b) => score(b) - score(a))
       : videos;
 
   const loadVideos = useCallback(async () => {
     try {
-      const res = await fetch(
-        SUPABASE_URL + '/rest/v1/videos?select=*&order=created_at.desc&limit=30',
-        { headers: { apikey: SUPABASE_KEY } }
-      );
+      const res = await api('videos?select=*&order=created_at.desc&limit=30');
       const data = await res.json();
       if (Array.isArray(data)) {
         setRemote(
@@ -288,20 +314,182 @@ function AppContent() {
             id: 'r' + v.id,
             user: v.username,
             description: v.description || '',
-            music: 'Original sound',
+            musicKey: 'originalSound',
             color: '#1A1A2E',
             url: v.video_url,
           }))
         );
       }
     } catch (e) {
-      // no connection: keep demo videos only
+      // offline: demo videos only
+    }
+  }, []);
+
+  const loadStats = useCallback(async () => {
+    try {
+      const res = await api('video_stats?select=*');
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const m = {};
+        data.forEach((r) => {
+          m[r.video_id] = {
+            likes: Number(r.likes) || 0,
+            comments: Number(r.comments) || 0,
+          };
+        });
+        setStats(m);
+      }
+    } catch (e) {
+      // keep zeros
     }
   }, []);
 
   useEffect(() => {
+    (async () => {
+      try {
+        const l = await AsyncStorage.getItem('vyra_lang');
+        if (l && STRINGS[l]) setLang(l);
+        const f = await AsyncStorage.getItem('vyra_following');
+        if (f) setFollowing(JSON.parse(f));
+        let d = await AsyncStorage.getItem('vyra_device');
+        if (!d) {
+          d = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+          await AsyncStorage.setItem('vyra_device', d);
+        }
+        setDeviceId(d);
+      } catch (e) {
+        setDeviceId('u' + Math.random().toString(36).slice(2, 12));
+      }
+    })();
     loadVideos();
-  }, [loadVideos]);
+    loadStats();
+  }, [loadVideos, loadStats]);
+
+  useEffect(() => {
+    if (!deviceId) return;
+    api('likes?select=video_id&device_id=eq.' + encodeURIComponent(deviceId))
+      .then((r) => r.json())
+      .then((rows) => {
+        if (Array.isArray(rows)) {
+          const m = {};
+          rows.forEach((r) => {
+            m[r.video_id] = true;
+          });
+          setMyLikes(m);
+        }
+      })
+      .catch(() => {});
+  }, [deviceId]);
+
+  const changeLang = (code) => {
+    setLang(code);
+    AsyncStorage.setItem('vyra_lang', code).catch(() => {});
+  };
+
+  const switchFeed = (feed) => {
+    setActiveFeed(feed);
+    setCurrentIndex(0);
+  };
+
+  const toggleFollow = (user) => {
+    setFollowing((prev) => {
+      const next = { ...prev, [user]: !prev[user] };
+      AsyncStorage.setItem('vyra_following', JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  };
+
+  const toggleLike = async (video) => {
+    if (!deviceId) return;
+    const id = video.id;
+    const liked = !!myLikes[id];
+    setMyLikes((p) => ({ ...p, [id]: !liked }));
+    setStats((p) => {
+      const cur = p[id] || { likes: 0, comments: 0 };
+      return {
+        ...p,
+        [id]: { ...cur, likes: Math.max(0, cur.likes + (liked ? -1 : 1)) },
+      };
+    });
+    try {
+      if (liked) {
+        await api(
+          'likes?video_id=eq.' +
+            encodeURIComponent(id) +
+            '&device_id=eq.' +
+            encodeURIComponent(deviceId),
+          { method: 'DELETE' }
+        );
+      } else {
+        await api('likes', {
+          method: 'POST',
+          headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({ video_id: id, device_id: deviceId }),
+        });
+      }
+    } catch (e) {
+      // will resync on next launch
+    }
+  };
+
+  const shareVideo = async (video) => {
+    try {
+      await Share.share({
+        message: video.url
+          ? t('shareLink') + video.url
+          : t('shareGeneric'),
+      });
+    } catch (e) {
+      // share cancelled
+    }
+  };
+
+  const openComments = async (video) => {
+    setCommentsFor(video.id);
+    setComments([]);
+    setCommentText('');
+    setCommentsLoading(true);
+    try {
+      const res = await api(
+        'comments?select=*&video_id=eq.' +
+          encodeURIComponent(video.id) +
+          '&order=created_at.desc&limit=100'
+      );
+      const data = await res.json();
+      if (Array.isArray(data)) setComments(data);
+    } catch (e) {
+      // keep empty list
+    }
+    setCommentsLoading(false);
+  };
+
+  const sendComment = async () => {
+    const text = commentText.trim();
+    if (!text || !commentsFor) return;
+    const vid = commentsFor;
+    setCommentText('');
+    try {
+      const res = await api('comments', {
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({
+          video_id: vid,
+          username: 'vyra_creator',
+          content: text,
+        }),
+      });
+      const data = await res.json();
+      if (Array.isArray(data) && data[0]) {
+        setComments((prev) => [data[0], ...prev]);
+        setStats((p) => {
+          const cur = p[vid] || { likes: 0, comments: 0 };
+          return { ...p, [vid]: { ...cur, comments: cur.comments + 1 } };
+        });
+      }
+    } catch (e) {
+      // not sent
+    }
+  };
 
   const pickVideo = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -336,13 +524,9 @@ function AppContent() {
 
       const publicUrl =
         SUPABASE_URL + '/storage/v1/object/public/videos/' + fileName;
-      const ins = await fetch(SUPABASE_URL + '/rest/v1/videos', {
+      const ins = await api('videos', {
         method: 'POST',
-        headers: {
-          apikey: SUPABASE_KEY,
-          'Content-Type': 'application/json',
-          Prefer: 'return=minimal',
-        },
+        headers: { Prefer: 'return=minimal' },
         body: JSON.stringify({
           username: 'vyra_creator',
           description: description,
@@ -355,7 +539,9 @@ function AppContent() {
       setDescription('');
       setStatus('');
       await loadVideos();
+      await loadStats();
       setCurrentIndex(0);
+      setActiveFeed('forYou');
       setActiveTab('Home');
     } catch (e) {
       setStatus(t('uploadFailed') + ' ' + String(e.message).slice(0, 200));
@@ -363,182 +549,148 @@ function AppContent() {
     setUploading(false);
   };
 
-  const shareVideo = async (video) => {
-    try {
-      await Share.share({
-        message: video.url
-          ? t('shareLink') + video.url
-          : t('shareGeneric'),
-      });
-    } catch (e) {
-      // share cancelled
-    }
-  };
-
-  const openComments = async (video) => {
-    setCommentsFor(video.id);
-    setComments([]);
-    setCommentText('');
-    setCommentsLoading(true);
-    try {
-      const res = await fetch(
-        SUPABASE_URL +
-          '/rest/v1/comments?select=*&video_id=eq.' +
-          encodeURIComponent(video.id) +
-          '&order=created_at.desc&limit=100',
-        { headers: { apikey: SUPABASE_KEY } }
-      );
-      const data = await res.json();
-      if (Array.isArray(data)) setComments(data);
-    } catch (e) {
-      // keep empty list
-    }
-    setCommentsLoading(false);
-  };
-
-  const sendComment = async () => {
-    const text = commentText.trim();
-    if (!text || !commentsFor) return;
-    setCommentText('');
-    try {
-      const res = await fetch(SUPABASE_URL + '/rest/v1/comments', {
-        method: 'POST',
-        headers: {
-          apikey: SUPABASE_KEY,
-          'Content-Type': 'application/json',
-          Prefer: 'return=representation',
-        },
-        body: JSON.stringify({
-          video_id: commentsFor,
-          username: 'vyra_creator',
-          content: text,
-        }),
-      });
-      const data = await res.json();
-      if (Array.isArray(data) && data[0]) {
-        setComments((prev) => [data[0], ...prev]);
-      }
-    } catch (e) {
-      // not sent
-    }
-  };
-
-  const toggleLike = (id) => {
-    setLikes((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
-  };
-
-  const toggleFollow = (id) => {
-    setFollowing((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
-  };
-
-  const switchFeed = (feed) => {
-    setActiveFeed(feed);
-    setCurrentIndex(0);
-  };
-
-  const renderTop = () => (
-    <View style={styles.videoTop}>
-      <Text style={styles.logo}>VYRA</Text>
-      <View style={styles.feedButtons}>
-        <TouchableOpacity onPress={() => switchFeed('Following')}>
-          <Text
-            style={[
-              styles.feedText,
-              activeFeed === 'Following' && styles.selectedFeed,
-            ]}
-          >
-            {t('tabFollowing')}
-          </Text>
+  const renderHeader = () => (
+    <View style={styles.header} pointerEvents="box-none">
+      <View style={styles.headerRow}>
+        <Text style={styles.logo}>VYRA</Text>
+        <TouchableOpacity onPress={() => setActiveTab('Follow')}>
+          <Text style={styles.headerIcon}>🔍</Text>
         </TouchableOpacity>
+        <View style={styles.pill}>
+          <Text style={styles.pillIcon}>🏆</Text>
+          <View>
+            <Text style={styles.pillNum}>0</Text>
+            <Text style={styles.pillLabel}>{t('points')}</Text>
+          </View>
+        </View>
+        <View style={styles.pill}>
+          <Text style={styles.pillIcon}>🛡️</Text>
+          <View>
+            <Text style={styles.pillLabel}>{t('level')}</Text>
+            <Text style={styles.pillNum}>1</Text>
+          </View>
+        </View>
+        <Text style={styles.headerIcon}>🎁</Text>
+      </View>
 
-        <TouchableOpacity onPress={() => switchFeed('For You')}>
-          <Text
-            style={[
-              styles.feedText,
-              activeFeed === 'For You' && styles.selectedFeed,
-            ]}
+      <View style={styles.tabsRow}>
+        {[
+          ['forYou', '🏠 ', 'tabForYou'],
+          ['following', '', 'tabFollowing'],
+          ['trending', '🔥 ', 'tabTrending'],
+        ].map(([key, icon, label]) => (
+          <TouchableOpacity
+            key={key}
+            style={[styles.tabPill, activeFeed === key && styles.tabPillActive]}
+            onPress={() => switchFeed(key)}
           >
-            {t('tabForYou')}
-          </Text>
-        </TouchableOpacity>
+            <Text style={styles.tabPillText}>
+              {icon}
+              {t(label)}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
     </View>
   );
 
-  const renderVideo = (video, index) => (
-    <View
-      key={video.id}
-      style={[styles.video, { backgroundColor: video.color, height: pageHeight }]}
-    >
-      {video.url && Math.abs(index - currentIndex) <= 1 && (
-        <VideoPlayer
-          url={video.url}
-          active={index === currentIndex && activeTab === 'Home'}
-        />
-      )}
+  const renderVideo = (video, index) => {
+    const c = countOf(video.id);
+    const isFollowed = !!following[video.user];
+    return (
+      <View
+        key={video.id}
+        style={[styles.video, { backgroundColor: video.color, height: pageHeight }]}
+      >
+        {video.url && Math.abs(index - currentIndex) <= 1 && (
+          <VideoPlayer
+            url={video.url}
+            active={index === currentIndex && activeTab === 'Home'}
+          />
+        )}
 
-      {renderTop()}
+        {!video.url && (
+          <View style={styles.centerContent}>
+            <Text style={styles.videoTitle}>VYRA</Text>
+            <Text style={styles.videoSubtitle}>{t('tagline')}</Text>
+          </View>
+        )}
 
-      {!video.url && (
-        <View style={styles.centerContent}>
-          <Text style={styles.videoTitle}>VYRA</Text>
-          <Text style={styles.videoSubtitle}>{t('tagline')}</Text>
+        <View style={styles.bottomShade} />
+
+        <View style={styles.videoInfo}>
+          <View style={styles.userRow}>
+            <Text style={styles.username}>@{video.user}</Text>
+            <TouchableOpacity
+              style={[styles.followPill, isFollowed && styles.followPillOn]}
+              onPress={() => toggleFollow(video.user)}
+            >
+              <Text style={styles.followPillText}>
+                {isFollowed ? t('btnFollowing') : '+ ' + t('btnFollow')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.description}>
+            {video.descKey ? t(video.descKey) : video.description}
+          </Text>
+          <Text style={styles.music}>♫ {t(video.musicKey || 'originalSound')}</Text>
         </View>
+
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={styles.avatarWrap}
+            onPress={() => toggleFollow(video.user)}
+          >
+            <View style={styles.avatar}>
+              <Text style={styles.avatarLetter}>
+                {(video.user || '?').charAt(0).toUpperCase()}
+              </Text>
+            </View>
+            {!isFollowed && (
+              <View style={styles.avatarPlus}>
+                <Text style={styles.avatarPlusText}>+</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.action} onPress={() => toggleLike(video)}>
+            <Text style={styles.actionIcon}>{myLikes[video.id] ? '❤️' : '🤍'}</Text>
+            <Text style={styles.actionText}>{formatCount(c.likes)}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.action} onPress={() => openComments(video)}>
+            <Text style={styles.actionIcon}>💬</Text>
+            <Text style={styles.actionText}>{formatCount(c.comments)}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.action} onPress={() => shareVideo(video)}>
+            <Text style={styles.actionIcon}>↗️</Text>
+            <Text style={styles.actionText}>{t('share')}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  const creators = [...new Set(videos.map((v) => v.user))];
+  const friendList = Object.keys(following).filter((k) => following[k]);
+
+  const creatorRow = (name, withButton) => (
+    <View key={name} style={styles.creatorRow}>
+      <View style={styles.smallAvatar}>
+        <Text style={styles.avatarLetter}>{name.charAt(0).toUpperCase()}</Text>
+      </View>
+      <Text style={styles.creatorName}>@{name}</Text>
+      {withButton && (
+        <TouchableOpacity
+          style={[styles.followPill, following[name] && styles.followPillOn]}
+          onPress={() => toggleFollow(name)}
+        >
+          <Text style={styles.followPillText}>
+            {following[name] ? t('btnFollowing') : '+ ' + t('btnFollow')}
+          </Text>
+        </TouchableOpacity>
       )}
-
-      <View style={styles.videoInfo}>
-        <Text style={styles.username}>@{video.user}</Text>
-        <Text style={styles.description}>
-          {video.descKey ? t(video.descKey) : video.description}
-        </Text>
-        <Text style={styles.music}>♫ {t(video.musicKey || 'originalSound')}</Text>
-      </View>
-
-      <View style={styles.actions}>
-        <TouchableOpacity
-          style={styles.action}
-          onPress={() => toggleLike(video.id)}
-        >
-          <Text style={styles.actionIcon}>
-            {likes[video.id] ? '❤️' : '🤍'}
-          </Text>
-          <Text style={styles.actionText}>
-            {likes[video.id] ? t('liked') : t('like')}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.action}
-          onPress={() => openComments(video)}
-        >
-          <Text style={styles.actionIcon}>💬</Text>
-          <Text style={styles.actionText}>{t('comment')}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.action}
-          onPress={() => shareVideo(video)}
-        >
-          <Text style={styles.actionIcon}>↗️</Text>
-          <Text style={styles.actionText}>{t('share')}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.action}
-          onPress={() => toggleFollow(video.user)}
-        >
-          <Text style={styles.actionIcon}>+</Text>
-          <Text style={styles.actionText}>
-            {following[video.user] ? t('btnFollowing') : t('btnFollow')}
-          </Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 
@@ -547,38 +699,38 @@ function AppContent() {
       <StatusBar barStyle="light-content" />
 
       {activeTab === 'Home' && (
-        <ScrollView
-          key={activeFeed}
-          style={{ flex: 1 }}
-          onLayout={(e) => setPageHeight(e.nativeEvent.layout.height)}
-          onMomentumScrollEnd={(e) =>
-            setCurrentIndex(
-              Math.round(e.nativeEvent.contentOffset.y / pageHeight)
-            )
-          }
-          pagingEnabled
-          decelerationRate="fast"
-          showsVerticalScrollIndicator={false}
-        >
-          {feedVideos.length === 0 ? (
-            <View
-              style={[
-                styles.video,
-                { backgroundColor: '#101010', height: pageHeight },
-              ]}
-            >
-              {renderTop()}
-              <View style={styles.centerContent}>
-                <Text style={styles.emptyTitle}>{t('noVideos')}</Text>
-                <Text style={styles.emptySub}>
-                  {t('followHint')}
-                </Text>
+        <View style={{ flex: 1 }}>
+          <ScrollView
+            key={activeFeed}
+            style={{ flex: 1 }}
+            onLayout={(e) => setPageHeight(e.nativeEvent.layout.height)}
+            onMomentumScrollEnd={(e) =>
+              setCurrentIndex(
+                Math.round(e.nativeEvent.contentOffset.y / pageHeight)
+              )
+            }
+            pagingEnabled
+            decelerationRate="fast"
+            showsVerticalScrollIndicator={false}
+          >
+            {feedVideos.length === 0 ? (
+              <View
+                style={[
+                  styles.video,
+                  { backgroundColor: '#101010', height: pageHeight },
+                ]}
+              >
+                <View style={styles.centerContent}>
+                  <Text style={styles.emptyTitle}>{t('noVideos')}</Text>
+                  <Text style={styles.emptySub}>{t('followHint')}</Text>
+                </View>
               </View>
-            </View>
-          ) : (
-            feedVideos.map(renderVideo)
-          )}
-        </ScrollView>
+            ) : (
+              feedVideos.map(renderVideo)
+            )}
+          </ScrollView>
+          {renderHeader()}
+        </View>
       )}
 
       {activeTab !== 'Home' && (
@@ -588,86 +740,32 @@ function AppContent() {
         >
           <Text style={styles.logo}>VYRA</Text>
 
-          {activeTab === 'Profile' ? (
-            <View style={{ alignItems: 'center', marginTop: 45 }}>
-              <Text style={{ fontSize: 65 }}>👤</Text>
-              <Text style={{ color: 'white', fontSize: 25, fontWeight: 'bold' }}>
-                VYRA Creator
-              </Text>
-              <Text style={{ color: '#AAAAAA', marginTop: 8 }}>
-                @vyra_creator
-              </Text>
-              <Text style={{ color: 'white', marginTop: 25 }}>
-                {t('tagline')} 🌍
-              </Text>
-              <Text style={{ color: '#A855F7', marginTop: 30, fontSize: 18 }}>
-                {remote.length} {t('posts')}     0 {t('followers')}     0 {t('followingCount')}
-              </Text>
-              <Text style={{ color: 'white', marginTop: 35 }}>
-                {t('myVideos')}
-              </Text>
-              <Text style={{ color: '#999999', marginTop: 15 }}>
-                {remote.length > 0
-                  ? t('videosInFeed')
-                  : t('videosWillAppear')}
-              </Text>
-              <Text style={{ color: 'white', marginTop: 35 }}>
-                {t('language')}
-              </Text>
-              <View style={styles.langRow}>
-                {[
-                  ['en', 'English'],
-                  ['ar', 'العربية'],
-                  ['fr', 'Français'],
-                ].map(([code, label]) => (
-                  <TouchableOpacity
-                    key={code}
-                    style={[
-                      styles.langBtn,
-                      lang === code && styles.langBtnActive,
-                    ]}
-                    onPress={() => changeLang(code)}
-                  >
-                    <Text style={styles.langText}>{label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+          {activeTab === 'Friends' ? (
+            <View style={{ marginTop: 30 }}>
+              <Text style={styles.screenTitle}>{t('friendsTitle')}</Text>
+              {friendList.length === 0 ? (
+                <Text style={styles.screenSub}>{t('friendsEmpty')}</Text>
+              ) : (
+                friendList.map((n) => creatorRow(n, true))
+              )}
             </View>
-          ) : activeTab === 'Discover' ? (
-            <View style={{ marginTop: 35 }}>
-              <Text style={{ color: 'white', fontSize: 26, fontWeight: 'bold' }}>
-                {t('discoverTitle')}
-              </Text>
-              <Text style={{ color: '#AAAAAA', marginTop: 15 }}>
-                {t('explore')}
-              </Text>
-              {['nameTraveler', 'nameDaily', 'nameCreator'].map((k, i) => (
-                <View
-                  key={i}
-                  style={{
-                    backgroundColor: '#202020',
-                    padding: 20,
-                    marginTop: 15,
-                    borderRadius: 12,
-                  }}
-                >
-                  <Text style={{ color: 'white', fontSize: 18 }}>
-                    👤 {t(k)}
-                  </Text>
-                  <Text style={{ color: '#A855F7', marginTop: 8 }}>
-                    {t('discoverCreator')}
-                  </Text>
-                </View>
-              ))}
+          ) : activeTab === 'Follow' ? (
+            <View style={{ marginTop: 30 }}>
+              <Text style={styles.screenTitle}>{t('discoverTitle')}</Text>
+              <Text style={styles.screenSub}>{t('explore')}</Text>
+              {creators.map((n) => creatorRow(n, true))}
             </View>
-          ) : activeTab === 'Messages' ? (
-            <View style={{ marginTop: 35 }}>
-              <Text style={{ color: 'white', fontSize: 26, fontWeight: 'bold' }}>
-                {t('messagesTitle')}
-              </Text>
-              <Text style={{ color: '#AAAAAA', marginTop: 15 }}>
-                {t('yourConvos')}
-              </Text>
+          ) : activeTab === 'Live' ? (
+            <View style={{ alignItems: 'center', marginTop: 70 }}>
+              <Text style={styles.liveBig}>📡</Text>
+              <Text style={styles.liveTitle}>{t('liveTitle')}</Text>
+              <Text style={styles.liveSoon}>{t('liveSoon')}</Text>
+              <Text style={styles.liveInfo}>{t('liveInfo')}</Text>
+            </View>
+          ) : activeTab === 'Chat' ? (
+            <View style={{ marginTop: 30 }}>
+              <Text style={styles.screenTitle}>{t('messagesTitle')}</Text>
+              <Text style={styles.screenSub}>{t('yourConvos')}</Text>
               <Text style={{ color: 'white', marginTop: 35 }}>
                 {t('noMessages')}
               </Text>
@@ -677,14 +775,7 @@ function AppContent() {
             </View>
           ) : activeTab === 'Create' ? (
             <View style={{ marginTop: 40 }}>
-              <Text
-                style={{
-                  color: '#A855F7',
-                  fontSize: 28,
-                  fontWeight: 'bold',
-                  textAlign: 'center',
-                }}
-              >
+              <Text style={[styles.screenTitle, { textAlign: 'center' }]}>
                 {t('createTitle')}
               </Text>
 
@@ -730,7 +821,48 @@ function AppContent() {
                 </Text>
               ) : null}
             </View>
-          ) : null}
+          ) : (
+            <View style={{ alignItems: 'center', marginTop: 40 }}>
+              <View style={styles.bigAvatar}>
+                <Text style={{ fontSize: 40 }}>👤</Text>
+              </View>
+              <Text style={{ color: 'white', fontSize: 22, fontWeight: 'bold', marginTop: 12 }}>
+                @vyra_creator
+              </Text>
+              <Text style={{ color: '#A855F7', marginTop: 18, fontSize: 16 }}>
+                {remote.length} {t('posts')}     {friendList.length} {t('followingCount')}
+              </Text>
+
+              <TouchableOpacity
+                style={[styles.primaryBtn, { alignSelf: 'stretch' }]}
+                onPress={() => setActiveTab('Create')}
+              >
+                <Text style={styles.primaryBtnText}>{t('publishVideo')}</Text>
+              </TouchableOpacity>
+
+              <Text style={{ color: 'white', marginTop: 30 }}>{t('myVideos')}</Text>
+              <Text style={{ color: '#999999', marginTop: 10 }}>
+                {remote.length > 0 ? t('videosInFeed') : t('videosWillAppear')}
+              </Text>
+
+              <Text style={{ color: 'white', marginTop: 30 }}>{t('language')}</Text>
+              <View style={styles.langRow}>
+                {[
+                  ['fr', 'Français'],
+                  ['ar', 'العربية'],
+                  ['en', 'English'],
+                ].map(([code, label]) => (
+                  <TouchableOpacity
+                    key={code}
+                    style={[styles.langBtn, lang === code && styles.langBtnActive]}
+                    onPress={() => changeLang(code)}
+                  >
+                    <Text style={styles.langText}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
         </ScrollView>
       )}
 
@@ -753,9 +885,7 @@ function AppContent() {
               {commentsLoading ? (
                 <ActivityIndicator color="#A855F7" style={{ marginTop: 20 }} />
               ) : comments.length === 0 ? (
-                <Text style={styles.noComments}>
-                  {t('noComments')}
-                </Text>
+                <Text style={styles.noComments}>{t('noComments')}</Text>
               ) : (
                 comments.map((c) => (
                   <View key={c.id} style={styles.commentRow}>
@@ -786,39 +916,39 @@ function AppContent() {
       <View
         style={[
           styles.bottomBar,
-          { height: 60 + insets.bottom, paddingBottom: insets.bottom },
+          { height: 64 + insets.bottom, paddingBottom: insets.bottom },
         ]}
       >
-        {[
-          ['Home', '⌂'],
-          ['Discover', '⌕'],
-          ['Create', '+'],
-          ['Messages', '✉'],
-          ['Profile', '◉'],
-        ].map(([tab, icon]) => (
-          <TouchableOpacity
-            key={tab}
-            style={styles.navItem}
-            onPress={() => setActiveTab(tab)}
-          >
-            <Text
-              style={[
-                styles.navIcon,
-                activeTab === tab && styles.activeNav,
-              ]}
+        {NAV.map(([key, icon, label]) => {
+          const active = activeTab === key;
+          const isLive = key === 'Live';
+          return (
+            <TouchableOpacity
+              key={key}
+              style={styles.navItem}
+              onPress={() => setActiveTab(key)}
             >
-              {icon}
-            </Text>
-            <Text
-              style={[
-                styles.navText,
-                activeTab === tab && styles.activeNav,
-              ]}
-            >
-              {t(tab.toLowerCase())}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.navIcon,
+                  active && styles.navIconActive,
+                  isLive && styles.liveIcon,
+                ]}
+              >
+                {icon}
+              </Text>
+              <Text
+                style={[
+                  styles.navText,
+                  active && styles.activeNav,
+                  isLive && styles.liveText,
+                ]}
+              >
+                {t(label)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -836,37 +966,13 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
 
-  videoTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 15,
-  },
-
-  logo: {
-    color: '#A855F7',
-    fontSize: 27,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-
-  feedButtons: {
-    flexDirection: 'row',
-    gap: 18,
-  },
-
-  feedText: {
-    color: '#AAAAAA',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  selectedFeed: {
-    color: '#FFFFFF',
-    borderBottomWidth: 2,
-    borderBottomColor: '#A855F7',
-    paddingBottom: 5,
+  bottomShade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 220,
+    backgroundColor: 'rgba(0,0,0,0.3)',
   },
 
   centerContent: {
@@ -888,24 +994,120 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 10,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  logo: {
+    color: '#A855F7',
+    fontSize: 27,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+
+  headerIcon: {
+    fontSize: 24,
+  },
+
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+
+  pillIcon: {
+    fontSize: 24,
+  },
+
+  pillNum: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+
+  pillLabel: {
+    color: '#CCCCCC',
+    fontSize: 10,
+  },
+
+  tabsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+
+  tabPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+
+  tabPillActive: {
+    backgroundColor: '#A855F7',
+  },
+
+  tabPillText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+
   videoInfo: {
     position: 'absolute',
-    bottom: 35,
-    left: 18,
-    width: width - 105,
+    bottom: 24,
+    left: 16,
+    width: width - 100,
+  },
+
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
   },
 
   username: {
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: 'bold',
-    marginBottom: 8,
+  },
+
+  followPill: {
+    borderWidth: 1.5,
+    borderColor: '#F43F9E',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+
+  followPillOn: {
+    borderColor: '#888888',
+  },
+
+  followPillText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 13,
   },
 
   description: {
     color: '#FFFFFF',
     fontSize: 14,
-    marginBottom: 10,
+    marginBottom: 8,
   },
 
   music: {
@@ -915,10 +1117,50 @@ const styles = StyleSheet.create({
 
   actions: {
     position: 'absolute',
-    right: 12,
-    bottom: 35,
+    right: 10,
+    bottom: 24,
     alignItems: 'center',
-    gap: 22,
+    gap: 18,
+  },
+
+  avatarWrap: {
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#A855F7',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  avatarLetter: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+
+  avatarPlus: {
+    position: 'absolute',
+    bottom: -10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#F43F9E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  avatarPlusText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 16,
+    lineHeight: 18,
   },
 
   action: {
@@ -927,33 +1169,37 @@ const styles = StyleSheet.create({
 
   actionIcon: {
     color: '#FFFFFF',
-    fontSize: 27,
+    fontSize: 30,
   },
 
   actionText: {
     color: '#FFFFFF',
-    fontSize: 10,
-    marginTop: 4,
+    fontSize: 12,
+    marginTop: 3,
+    fontWeight: '600',
   },
 
   bottomBar: {
-    height: 60,
     backgroundColor: '#080808',
     flexDirection: 'row',
-    justifyContent: 'space-around',
     alignItems: 'center',
     borderTopWidth: 0.5,
     borderTopColor: '#333333',
   },
 
   navItem: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   navIcon: {
-    color: '#888888',
-    fontSize: 23,
+    fontSize: 22,
+    opacity: 0.55,
+  },
+
+  navIconActive: {
+    opacity: 1,
   },
 
   navText: {
@@ -964,6 +1210,124 @@ const styles = StyleSheet.create({
 
   activeNav: {
     color: '#A855F7',
+  },
+
+  liveIcon: {
+    fontSize: 30,
+    opacity: 1,
+  },
+
+  liveText: {
+    color: '#FF2D55',
+    fontWeight: 'bold',
+    fontSize: 11,
+  },
+
+  screenTitle: {
+    color: '#FFFFFF',
+    fontSize: 26,
+    fontWeight: 'bold',
+  },
+
+  screenSub: {
+    color: '#AAAAAA',
+    marginTop: 12,
+  },
+
+  creatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#202020',
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 12,
+  },
+
+  smallAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#A855F7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  creatorName: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    flex: 1,
+    marginLeft: 12,
+  },
+
+  bigAvatar: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#202020',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  liveBig: {
+    fontSize: 70,
+  },
+
+  liveTitle: {
+    color: '#FF2D55',
+    fontSize: 34,
+    fontWeight: '900',
+    letterSpacing: 4,
+    marginTop: 10,
+  },
+
+  liveSoon: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    marginTop: 18,
+    textAlign: 'center',
+  },
+
+  liveInfo: {
+    color: '#999999',
+    marginTop: 12,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+
+  emptyTitle: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+
+  emptySub: {
+    color: '#999999',
+    fontSize: 14,
+    marginTop: 10,
+    textAlign: 'center',
+    paddingHorizontal: 40,
+  },
+
+  langRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+
+  langBtn: {
+    backgroundColor: '#202020',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+
+  langBtnActive: {
+    backgroundColor: '#A855F7',
+  },
+
+  langText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
   },
 
   modalWrap: {
@@ -1042,42 +1406,6 @@ const styles = StyleSheet.create({
   },
 
   sendBtnText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-
-  emptyTitle: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: 'bold',
-  },
-
-  emptySub: {
-    color: '#999999',
-    fontSize: 14,
-    marginTop: 10,
-    textAlign: 'center',
-    paddingHorizontal: 40,
-  },
-
-  langRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 14,
-  },
-
-  langBtn: {
-    backgroundColor: '#202020',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-  },
-
-  langBtnActive: {
-    backgroundColor: '#A855F7',
-  },
-
-  langText: {
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
