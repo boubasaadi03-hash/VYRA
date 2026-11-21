@@ -1,4 +1,3 @@
-
 {
   "expo": {
     "name": "VYRA",
@@ -6,8 +5,13 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "icon": "./icon.png",
     "android": {
-      "package": "com.saadi.vyra"
+      "package": "com.saadi.vyra",
+      "adaptiveIcon": {
+        "foregroundImage": "./adaptive-icon.png",
+        "backgroundColor": "#080808"
+      }
     },
     "extra": {
       "eas": {
