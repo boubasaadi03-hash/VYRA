@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VYRA Admin</title>
+<style>
+:root{--bg:#080808;--card:#161616;--line:#2a2a2a;--text:#f2f2f2;--muted:#9a9a9a;--p:#a855f7;--red:#ff4d6d;--green:#3ddc97}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,'Segoe UI',Tahoma,sans-serif;font-size:15px}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+.logo{color:var(--p);font-weight:900;font-size:22px;letter-spacing:2px}
+.tabs{display:flex;gap:8px;overflow-x:auto;padding:12px 16px;border-bottom:1px solid var(--line)}
+.tab{flex:0 0 auto;background:#1e1e1e;color:var(--text);border:0;border-radius:18px;padding:8px 14px;font-size:14px;cursor:pointer}
+.tab.on{background:var(--p);font-weight:bold}
+main{padding:16px;max-width:760px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.muted{color:var(--muted)}.small{font-size:12px}
+.chip{display:inline-block;border-radius:10px;padding:2px 10px;font-size:12px;font-weight:bold;background:#2a2a2a}
+.chip.red{background:rgba(255,77,109,.18);color:var(--red)}
+.chip.green{background:rgba(61,220,151,.15);color:var(--green)}
+.chip.p{background:rgba(168,85,247,.2);color:#d8b4fe}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+button.b{background:#242424;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer}
+button.b.red{border-color:var(--red);color:var(--red)}
+button.b.p{background:var(--p);border-color:var(--p);font-weight:bold}
+input,select{width:100%;background:#202020;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:15px;margin-top:10px}
+video{width:100%;max-height:260px;background:#000;border-radius:8px;margin-top:10px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat b{display:block;font-size:26px;color:var(--p)}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#222;border:1px solid var(--line);padding:10px 16px;border-radius:12px;display:none;z-index:9;max-width:90%}
+.err{color:var(--red);margin-top:12px}
+.center{max-width:380px;margin:60px auto;padding:0 16px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast"></div>
+<script>
+(function () {
+  var API = 'https://izaovotpdkfabizdzpew.supabase.co';
+  var KEY = 'sb_publishable_pZGo3ceCADgIYO_NF85Ujw_exlkdErd';
+  var $ = function (s) { return document.querySelector(s); };
+  var esc = function (v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+  var fmt = function (d) { try { return new Date(d).toLocaleString(); } catch (e) { return d; } };
+
+  var S = null;
+  try { S = JSON.parse(localStorage.getItem('vyra_admin') || 'null'); } catch (e) {}
+  function save(s) {
+    S = s;
+    try {
+      if (s) localStorage.setItem('vyra_admin', JSON.stringify(s));
+      else localStorage.removeItem('vyra_admin');
+    } catch (e) {}
+  }
+  function toS(d) {
+    return { token: d.access_token, refresh: d.refresh_token, exp: Math.floor(Date.now() / 1000) + (d.expires_in || 3600), uid: d.user && d.user.id };
+  }
+  function toast(msg, bad) {
+    var t = $('#toast');
+    t.textContent = msg;
+    t.style.borderColor = bad ? '#ff4d6d' : '#2a2a2a';
+    t.style.display = 'block';
+    clearTimeout(toast.h);
+    toast.h = setTimeout(function () { t.style.display = 'none'; }, 3500);
+  }
+
+  async function ensureFresh() {
+    if (!S) throw new Error('not signed in');
+    if (S.exp - 30 > Date.now() / 1000) return;
+    var r = await fetch(API + '/auth/v1/token?grant_type=refresh_token', {
+      method: 'POST',
+      headers: { apikey: KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: S.refresh })
+    });
+    var d = await r.json();
+    if (!r.ok) { save(null); location.reload(); throw new Error('session expired'); }
+    save(toS(d));
+  }
+  async function call(path, opts) {
+    opts = opts || {};
+    await ensureFresh();
+    var h = Object.assign({ apikey: KEY, 'Content-Type': 'application/json', Authorization: 'Bearer ' + S.token }, opts.headers || {});
+    var res = await fetch(API + path, Object.assign({}, opts, { headers: h }));
+    var txt = await res.text();
+    var data = null;
+    try { data = txt ? JSON.parse(txt) : null; } catch (e) { data = txt; }
+    if (!res.ok) throw new Error((data && (data.message || data.msg || data.error_description || data.error)) || ('HTTP ' + res.status));
+    return data;
+  }
+  var rest = function (p, o) { return call('/rest/v1/' + p, o); };
+  var rpc = function (n, b) { return call('/rest/v1/rpc/' + n, { method: 'POST', body: JSON.stringify(b || {}) }); };
+
+  async function names(ids) {
+    ids = Array.from(new Set(ids.filter(Boolean)));
+    if (!ids.length) return {};
+    var rows = await rest('profiles?select=id,username&id=in.(' + ids.join(',') + ')');
+    var m = {};
+    rows.forEach(function (r) { m[r.id] = r.username; });
+    return m;
+  }
+
+  /* ---------- login ---------- */
+  function showLogin(msg) {
+    $('#app').innerHTML =
+      '<div class="center"><div class="logo" style="font-size:34px;text-align:center">VYRA</div>' +
+      '<p class="muted" style="text-align:center">لوحة تحكم المدير</p>' +
+      '<input id="em" type="email" placeholder="البريد الإلكتروني" autocomplete="username" dir="ltr">' +
+      '<input id="pw" type="password" placeholder="كلمة السر" autocomplete="current-password" dir="ltr">' +
+      '<button class="b p" id="go" style="width:100%;margin-top:14px;padding:12px">تسجيل الدخول</button>' +
+      '<div class="err" id="lerr">' + esc(msg || '') + '</div></div>';
+    $('#go').onclick = async function () {
+      $('#lerr').textContent = '';
+      try {
+        var r = await fetch(API + '/auth/v1/token?grant_type=password', {
+          method: 'POST',
+          headers: { apikey: KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: $('#em').value.trim().toLowerCase(), password: $('#pw').value })
+        });
+        var d = await r.json();
+        if (!r.ok) throw new Error(d.msg || d.error_description || 'فشل تسجيل الدخول');
+        save(toS(d));
+        var ok = await rpc('is_admin');
+        if (ok !== true) { save(null); showLogin('هذا الحساب ليس مديراً.'); return; }
+        start();
+      } catch (e) { $('#lerr').textContent = e.message; }
+    };
+  }
+
+  /* ---------- shell ---------- */
+  var TABS = [
+    ['stats', 'Statistics · الإحصائيات'],
+    ['users', 'Users · المستخدمون'],
+    ['videos', 'Videos · الفيديوهات'],
+    ['reports', 'Reports · البلاغات'],
+    ['moderation', 'Moderation · المراقبة'],
+    ['logs', 'Admin Logs · السجل']
+  ];
+  var cur = 'stats';
+
+  function start() {
+    $('#app').innerHTML =
+      '<header><span class="logo">VYRA Admin</span><button class="b" id="out">خروج</button></header>' +
+      '<div class="tabs" id="tabs"></div><main id="view"></main>';
+    $('#out').onclick = function () { save(null); location.reload(); };
+    $('#tabs').innerHTML = TABS.map(function (t) {
+      return '<button class="tab" data-t="' + t[0] + '">' + t[1] + '</button>';
+    }).join('');
+    $('#tabs').onclick = function (e) {
+      var t = e.target.getAttribute('data-t');
+      if (t) go(t);
+    };
+    go('stats');
+  }
+
+  async function go(t) {
+    cur = t;
+    Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) {
+      b.classList.toggle('on', b.getAttribute('data-t') === t);
+    });
+    $('#view').innerHTML = '<p class="muted">جارٍ التحميل...</p>';
+    try {
+      await ({ stats: vStats, users: vUsers, videos: vVideos, reports: vReports, moderation: vMod, logs: vLogs }[t])();
+    } catch (e) {
+      $('#view').innerHTML = '<div class="err">' + esc(e.message) + '</div>';
+    }
+  }
+
+  async function act(fn, okMsg) {
+    try { await fn(); toast(okMsg || 'تم'); go(cur); }
+    catch (e) { toast(e.message, true); }
+  }
+
+  /* ---------- Statistics ---------- */
+  async function vStats() {
+    var s = await rpc('admin_stats');
+    var items = [
+      ['المستخدمون', s.users], ['جدد (7 أيام)', s.users_7d], ['محظورون', s.banned],
+      ['الفيديوهات', s.videos], ['فيديوهات جديدة (7 أيام)', s.videos_7d], ['مخفية', s.hidden_videos],
+      ['التعليقات', s.comments], ['الإعجابات', s.likes], ['بلاغات مفتوحة', s.open_reports]
+    ];
+    $('#view').innerHTML = '<div class="grid">' + items.map(function (i) {
+      return '<div class="card stat"><span class="muted small">' + i[0] + '</span><b>' + esc(i[1]) + '</b></div>';
+    }).join('') + '</div>';
+  }
+
+  /* ---------- Users (+ Blocking / Unblock) ---------- */
+  async function vUsers(q) {
+    q = q || '';
+    var rows = await rpc('admin_list_users', { p_search: q, p_limit: 100 });
+    $('#view').innerHTML =
+      '<input id="q" placeholder="بحث باسم المستخدم" value="' + esc(q) + '">' +
+      '<div style="margin-top:12px">' + (rows.length ? rows.map(function (u) {
+        return '<div class="card"><div class="row"><b>@' + esc(u.username) + '</b><span>' +
+          (u.user_is_admin ? '<span class="chip p">مدير</span> ' : '') +
+          '<span class="chip ' + (u.banned ? 'red' : 'green') + '">' + (u.banned ? 'محظور' : 'نشط') + '</span></span></div>' +
+          '<div class="muted small" dir="ltr" style="text-align:right">' + esc(u.id) + '</div>' +
+          '<div class="muted small">انضم: ' + esc(fmt(u.created_at)) + ' · فيديوهات: ' + esc(u.video_count) + '</div>' +
+          (u.banned ? '<div class="muted small">سبب الحظر: ' + esc(u.ban_reason || '-') + '</div>' : '') +
+          (u.user_is_admin ? '' : '<div class="btns">' + (u.banned
+            ? '<button class="b p" data-a="unban" data-id="' + esc(u.id) + '">إعادة التفعيل (Unblock)</button>'
+            : '<button class="b red" data-a="ban" data-id="' + esc(u.id) + '">حظر الحساب (Block)</button>') + '</div>') +
+          '</div>';
+      }).join('') : '<p class="muted">لا نتائج.</p>') + '</div>';
+    $('#q').onchange = function () { vUsers($('#q').value.trim()); };
+  }
+
+  /* ---------- Videos ---------- */
+  function videoCard(v, extra) {
+    var canPlay = String(v.video_url || '').indexOf(API + '/storage/') === 0;
+    return '<div class="card"><div class="row"><b>@' + esc(v.username) + '</b>' +
+      '<span class="chip ' + (v.hidden ? 'red' : 'green') + '">' + (v.hidden ? 'مخفي' : 'ظاهر') + '</span></div>' +
+      (canPlay ? '<video controls preload="metadata" playsinline src="' + esc(v.video_url) + '"></video>' : '<div class="muted small">رابط خارجي غير معروض</div>') +
+      '<div style="margin-top:8px">' + esc(v.description || '') + '</div>' +
+      '<div class="muted small">#' + esc(v.id) + ' · ' + esc(fmt(v.created_at)) + '</div>' +
+      '<div class="btns">' +
+      (v.hidden
+        ? '<button class="b p" data-a="unhide" data-id="' + esc(v.id) + '">إظهار</button>'
+        : '<button class="b" data-a="hide" data-id="' + esc(v.id) + '">إخفاء</button>') +
+      '<button class="b red" data-a="delvideo" data-id="' + esc(v.id) + '">حذف نهائي</button>' +
+      (v.user_id ? '<button class="b red" data-a="ban" data-id="' + esc(v.user_id) + '">حظر صاحبه</button>' : '') +
+      (extra || '') + '</div></div>';
+  }
+  async function vVideos() {
+    var rows = await rest('videos?select=*&order=created_at.desc&limit=50');
+    $('#view').innerHTML = rows.length ? rows.map(function (v) { return videoCard(v); }).join('') : '<p class="muted">لا فيديوهات.</p>';
+  }
+
+  /* ---------- Reports ---------- */
+  var repFilter = 'open';
+  async function vReports() {
+    var rows = await rest('reports?select=*&order=created_at.desc&limit=100' + (repFilter === 'open' ? '&status=eq.open' : ''));
+    var nm = await names(rows.map(function (r) { return r.reporter_id; }));
+    var typeAr = { video: 'فيديو', user: 'مستخدم', comment: 'تعليق', message: 'رسالة' };
+    var stAr = { open: 'مفتوح', actioned: 'تم الإجراء', dismissed: 'مرفوض' };
+    $('#view').innerHTML =
+      '<select id="rf"><option value="open"' + (repFilter === 'open' ? ' selected' : '') + '>المفتوحة فقط</option><option value="all"' + (repFilter === 'all' ? ' selected' : '') + '>الكل</option></select>' +
+      '<div style="margin-top:12px">' + (rows.length ? rows.map(function (r) {
+        var b = '';
+        if (r.status === 'open') {
+          if (r.target_type === 'video') b += '<button class="b" data-a="rep-hide" data-id="' + r.id + '" data-t="' + esc(r.target_id) + '">إخفاء الفيديو</button>';
+          if (r.target_type === 'user') b += '<button class="b red" data-a="rep-ban" data-id="' + r.id + '" data-t="' + esc(r.target_id) + '">حظر المستخدم</button>';
+          if (r.target_type === 'comment') b += '<button class="b red" data-a="rep-delcomment" data-id="' + r.id + '" data-t="' + esc(r.target_id) + '">حذف التعليق</button>';
+          b += '<button class="b p" data-a="rep-done" data-id="' + r.id + '">تم الإجراء</button>' +
+               '<button class="b" data-a="rep-dismiss" data-id="' + r.id + '">رفض البلاغ</button>';
+        }
+        return '<div class="card"><div class="row"><span><span class="chip p">' + esc(typeAr[r.target_type] || r.target_type) + '</span> <b>' + esc(r.reason) + '</b></span>' +
+          '<span class="chip ' + (r.status === 'open' ? 'red' : 'green') + '">' + esc(stAr[r.status] || r.status) + '</span></div>' +
+          (r.details ? '<div style="margin-top:8px">' + esc(r.details) + '</div>' : '') +
+          '<div class="muted small" dir="ltr" style="text-align:right">الهدف: ' + esc(r.target_id) + '</div>' +
+          '<div class="muted small">المُبلِّغ: @' + esc(nm[r.reporter_id] || '?') + ' · ' + esc(fmt(r.created_at)) + '</div>' +
+          '<div class="btns">' + b + '</div></div>';
+      }).join('') : '<p class="muted">لا بلاغات.</p>') + '</div>';
+    $('#rf').onchange = function () { repFilter = $('#rf').value; vReports(); };
+  }
+
+  /* ---------- Moderation ---------- */
+  async function vMod() {
+    var rows = await rest('comments?select=*&order=created_at.desc&limit=50');
+    $('#view').innerHTML = '<p class="muted small">أحدث 50 تعليقاً. راجعها واحذف المخالف.</p>' +
+      (rows.length ? rows.map(function (c) {
+        return '<div class="card"><div class="row"><b>@' + esc(c.username) + '</b><span class="muted small">' + esc(fmt(c.created_at)) + '</span></div>' +
+          '<div style="margin-top:8px">' + esc(c.content) + '</div>' +
+          '<div class="muted small">فيديو: ' + esc(c.video_id) + '</div>' +
+          '<div class="btns"><button class="b red" data-a="delcomment" data-id="' + esc(c.id) + '">حذف التعليق</button>' +
+          (c.user_id ? '<button class="b red" data-a="ban" data-id="' + esc(c.user_id) + '">حظر صاحبه</button>' : '') + '</div></div>';
+      }).join('') : '<p class="muted">لا تعليقات.</p>');
+  }
+
+  /* ---------- Admin Logs ---------- */
+  async function vLogs() {
+    var rows = await rest('admin_logs?select=*&order=created_at.desc&limit=100');
+    var nm = await names(rows.map(function (r) { return r.admin_id; }));
+    var actAr = {
+      ban_user: 'حظر مستخدم', unban_user: 'إعادة تفعيل مستخدم', hide_video: 'إخفاء فيديو', unhide_video: 'إظهار فيديو',
+      delete_video: 'حذف فيديو', delete_comment: 'حذف تعليق', report_actioned: 'بلاغ: تم الإجراء', report_dismissed: 'بلاغ: مرفوض'
+    };
+    $('#view').innerHTML = rows.length ? rows.map(function (r) {
+      return '<div class="card"><div class="row"><b>' + esc(actAr[r.action] || r.action) + '</b><span class="muted small">' + esc(fmt(r.created_at)) + '</span></div>' +
+        '<div class="muted small">المدير: @' + esc(nm[r.admin_id] || '?') + ' · ' + esc(r.target_type || '') + ' ' + esc(r.target_id || '') + '</div>' +
+        (r.details ? '<div class="muted small">' + esc(r.details) + '</div>' : '') + '</div>';
+    }).join('') : '<p class="muted">السجل فارغ.</p>';
+  }
+
+  /* ---------- actions ---------- */
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest ? e.target.closest('[data-a]') : null;
+    if (!el) return;
+    var a = el.getAttribute('data-a');
+    var id = el.getAttribute('data-id');
+    var t = el.getAttribute('data-t');
+    var reason;
+
+    if (a === 'ban') {
+      reason = prompt('سبب الحظر؟');
+      if (reason === null) return;
+      act(function () { return rpc('admin_set_ban', { p_user: id, p_banned: true, p_reason: reason }); }, 'تم حظر الحساب');
+    } else if (a === 'unban') {
+      if (!confirm('إعادة تفعيل هذا الحساب؟')) return;
+      act(function () { return rpc('admin_set_ban', { p_user: id, p_banned: false, p_reason: '' }); }, 'تمت إعادة التفعيل');
+    } else if (a === 'hide') {
+      reason = prompt('سبب الإخفاء؟');
+      if (reason === null) return;
+      act(function () { return rpc('admin_set_video_hidden', { p_video: Number(id), p_hidden: true, p_reason: reason }); }, 'تم الإخفاء');
+    } else if (a === 'unhide') {
+      act(function () { return rpc('admin_set_video_hidden', { p_video: Number(id), p_hidden: false, p_reason: '' }); }, 'تم الإظهار');
+    } else if (a === 'delvideo') {
+      reason = prompt('سبب الحذف النهائي؟');
+      if (reason === null) return;
+      act(async function () {
+        var url = await rpc('admin_delete_video', { p_video: Number(id), p_reason: reason });
+        try {
+          var name = String(url || '').split('/').pop();
+          if (name) await call('/storage/v1/object/videos/' + encodeURIComponent(name), { method: 'DELETE' });
+        } catch (er) { /* file may already be gone */ }
+      }, 'تم الحذف');
+    } else if (a === 'delcomment') {
+      if (!confirm('حذف هذا التعليق؟')) return;
+      act(function () { return rpc('admin_delete_comment', { p_comment: Number(id), p_reason: '' }); }, 'تم حذف التعليق');
+    } else if (a === 'rep-hide') {
+      act(async function () {
+        await rpc('admin_set_video_hidden', { p_video: Number(t), p_hidden: true, p_reason: 'report #' + id });
+        await rpc('admin_resolve_report', { p_report: Number(id), p_status: 'actioned', p_note: 'video hidden' });
+      }, 'تم إخفاء الفيديو');
+    } else if (a === 'rep-ban') {
+      reason = prompt('سبب الحظر؟');
+      if (reason === null) return;
+      act(async function () {
+        await rpc('admin_set_ban', { p_user: t, p_banned: true, p_reason: reason });
+        await rpc('admin_resolve_report', { p_report: Number(id), p_status: 'actioned', p_note: 'user banned' });
+      }, 'تم حظر الحساب');
+    } else if (a === 'rep-delcomment') {
+      act(async function () {
+        await rpc('admin_delete_comment', { p_comment: Number(t), p_reason: 'report #' + id });
+        await rpc('admin_resolve_report', { p_report: Number(id), p_status: 'actioned', p_note: 'comment deleted' });
+      }, 'تم حذف التعليق');
+    } else if (a === 'rep-done') {
+      act(function () { return rpc('admin_resolve_report', { p_report: Number(id), p_status: 'actioned', p_note: '' }); }, 'تم');
+    } else if (a === 'rep-dismiss') {
+      act(function () { return rpc('admin_resolve_report', { p_report: Number(id), p_status: 'dismissed', p_note: '' }); }, 'تم رفض البلاغ');
+    }
+  });
+
+  if (S) {
+    rpc('is_admin').then(function (ok) {
+      if (ok === true) start(); else { save(null); showLogin('هذا الحساب ليس مديراً.'); }
+    }).catch(function () { save(null); showLogin(''); });
+  } else {
+    showLogin('');
+  }
+})();
+</script>
+</body>
+</html>
