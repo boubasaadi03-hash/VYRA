@@ -10,6 +10,9 @@ import {
   Dimensions,
   TextInput,
   ActivityIndicator,
+  Share,
+  Modal,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -79,6 +82,10 @@ function AppContent() {
   const [description, setDescription] = useState('');
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState('');
+  const [commentsFor, setCommentsFor] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [commentText, setCommentText] = useState('');
+  const [commentsLoading, setCommentsLoading] = useState(false);
   const insets = useSafeAreaInsets();
 
   const videos = [...remote, ...demoVideos];
@@ -171,6 +178,66 @@ function AppContent() {
     setUploading(false);
   };
 
+  const shareVideo = async (video) => {
+    try {
+      await Share.share({
+        message: video.url
+          ? 'Watch this video on VYRA: ' + video.url
+          : 'Join me on VYRA - Your world. Your moments.',
+      });
+    } catch (e) {
+      // share cancelled
+    }
+  };
+
+  const openComments = async (video) => {
+    setCommentsFor(video.id);
+    setComments([]);
+    setCommentText('');
+    setCommentsLoading(true);
+    try {
+      const res = await fetch(
+        SUPABASE_URL +
+          '/rest/v1/comments?select=*&video_id=eq.' +
+          encodeURIComponent(video.id) +
+          '&order=created_at.desc&limit=100',
+        { headers: { apikey: SUPABASE_KEY } }
+      );
+      const data = await res.json();
+      if (Array.isArray(data)) setComments(data);
+    } catch (e) {
+      // keep empty list
+    }
+    setCommentsLoading(false);
+  };
+
+  const sendComment = async () => {
+    const text = commentText.trim();
+    if (!text || !commentsFor) return;
+    setCommentText('');
+    try {
+      const res = await fetch(SUPABASE_URL + '/rest/v1/comments', {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_KEY,
+          'Content-Type': 'application/json',
+          Prefer: 'return=representation',
+        },
+        body: JSON.stringify({
+          video_id: commentsFor,
+          username: 'vyra_creator',
+          content: text,
+        }),
+      });
+      const data = await res.json();
+      if (Array.isArray(data) && data[0]) {
+        setComments((prev) => [data[0], ...prev]);
+      }
+    } catch (e) {
+      // not sent
+    }
+  };
+
   const toggleLike = (id) => {
     setLikes((prev) => ({
       ...prev,
@@ -250,12 +317,18 @@ function AppContent() {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.action}>
+        <TouchableOpacity
+          style={styles.action}
+          onPress={() => openComments(video)}
+        >
           <Text style={styles.actionIcon}>💬</Text>
           <Text style={styles.actionText}>Comment</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.action}>
+        <TouchableOpacity
+          style={styles.action}
+          onPress={() => shareVideo(video)}
+        >
           <Text style={styles.actionIcon}>↗️</Text>
           <Text style={styles.actionText}>Share</Text>
         </TouchableOpacity>
@@ -425,6 +498,55 @@ function AppContent() {
           ) : null}
         </ScrollView>
       )}
+
+      <Modal
+        visible={commentsFor !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCommentsFor(null)}
+      >
+        <KeyboardAvoidingView style={styles.modalWrap} behavior="padding">
+          <View style={[styles.sheet, { paddingBottom: insets.bottom + 12 }]}>
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Comments</Text>
+              <TouchableOpacity onPress={() => setCommentsFor(null)}>
+                <Text style={styles.sheetClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
+              {commentsLoading ? (
+                <ActivityIndicator color="#A855F7" style={{ marginTop: 20 }} />
+              ) : comments.length === 0 ? (
+                <Text style={styles.noComments}>
+                  No comments yet. Be the first!
+                </Text>
+              ) : (
+                comments.map((c) => (
+                  <View key={c.id} style={styles.commentRow}>
+                    <Text style={styles.commentUser}>@{c.username}</Text>
+                    <Text style={styles.commentText}>{c.content}</Text>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+
+            <View style={styles.commentInputRow}>
+              <TextInput
+                style={styles.commentInput}
+                placeholder="Add a comment..."
+                placeholderTextColor="#777777"
+                value={commentText}
+                onChangeText={setCommentText}
+                maxLength={300}
+              />
+              <TouchableOpacity style={styles.sendBtn} onPress={sendComment}>
+                <Text style={styles.sendBtnText}>Send</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <View
         style={[
@@ -607,6 +729,86 @@ const styles = StyleSheet.create({
 
   activeNav: {
     color: '#A855F7',
+  },
+
+  modalWrap: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+
+  sheet: {
+    height: '65%',
+    backgroundColor: '#141414',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 16,
+  },
+
+  sheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+
+  sheetTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: 'bold',
+  },
+
+  sheetClose: {
+    color: '#FFFFFF',
+    fontSize: 20,
+  },
+
+  noComments: {
+    color: '#999999',
+    textAlign: 'center',
+    marginTop: 30,
+  },
+
+  commentRow: {
+    marginBottom: 14,
+  },
+
+  commentUser: {
+    color: '#A855F7',
+    fontWeight: 'bold',
+  },
+
+  commentText: {
+    color: '#FFFFFF',
+    marginTop: 2,
+  },
+
+  commentInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+
+  commentInput: {
+    flex: 1,
+    backgroundColor: '#202020',
+    color: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+
+  sendBtn: {
+    backgroundColor: '#A855F7',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    marginLeft: 8,
+  },
+
+  sendBtnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
   },
 
   primaryBtn: {
