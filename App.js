@@ -1,5 +1,5 @@
 // VYRA
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -133,6 +133,11 @@ const STRINGS = {
     usernameTaken: 'This username is already taken.',
     confirmEmail: 'Check your email to confirm your account, then log in.',
     errGeneric: 'Something went wrong. Try again.',
+    messagePlaceholder: 'Write a message...',
+    messageBtn: 'Message',
+    noChats: 'No conversations yet. Open a profile and tap Message.',
+    chatWithFollowed: 'People you follow',
+    reportMessage: 'Report this message',
     reportTitle: 'Report',
     reasonSpam: 'Spam or scam',
     reasonHarass: 'Harassment or bullying',
@@ -228,6 +233,11 @@ const STRINGS = {
     usernameTaken: 'اسم المستخدم مستخدم من قبل.',
     confirmEmail: 'افتح بريدك لتأكيد الحساب ثم سجّل الدخول.',
     errGeneric: 'حدث خطأ. حاول مرة أخرى.',
+    messagePlaceholder: 'اكتب رسالة...',
+    messageBtn: 'مراسلة',
+    noChats: 'لا توجد محادثات بعد. افتح ملف شخص واضغط مراسلة.',
+    chatWithFollowed: 'من تتابعهم',
+    reportMessage: 'الإبلاغ عن هذه الرسالة',
     reportTitle: 'إبلاغ',
     reasonSpam: 'محتوى مزعج أو احتيال',
     reasonHarass: 'تحرش أو تنمر',
@@ -323,6 +333,11 @@ const STRINGS = {
     usernameTaken: "Ce nom d'utilisateur est déjà pris.",
     confirmEmail: 'Vérifie ton e-mail pour confirmer ton compte, puis connecte-toi.',
     errGeneric: "Une erreur s'est produite. Réessaie.",
+    messagePlaceholder: 'Écris un message...',
+    messageBtn: 'Message',
+    noChats: "Aucune conversation. Ouvre un profil et touche Message.",
+    chatWithFollowed: 'Personnes que tu suis',
+    reportMessage: 'Signaler ce message',
     reportTitle: 'Signaler',
     reasonSpam: 'Spam ou arnaque',
     reasonHarass: 'Harcèlement ou intimidation',
@@ -633,6 +648,14 @@ function AppContent() {
   const [reportBusy, setReportBusy] = useState(false);
   const [reportDone, setReportDone] = useState(false);
   const [banned, setBanned] = useState(false);
+  const [names, setNames] = useState({});
+  const [conversations, setConversations] = useState([]);
+  const [chatWith, setChatWith] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatText, setChatText] = useState('');
+  const [chatSending, setChatSending] = useState(false);
+  const [chatError, setChatError] = useState('');
+  const chatScrollRef = useRef(null);
   const [pageHeight, setPageHeight] = useState(height - 85);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [remote, setRemote] = useState([]);
@@ -849,6 +872,127 @@ function AppContent() {
     setActiveFeed(feed);
     setCurrentIndex(0);
   };
+
+  const nameOf = (id) => {
+    if (names[id]) return names[id];
+    const pe = people.find((x) => x.id === id);
+    return pe ? pe.username : String(id).slice(0, 6);
+  };
+
+  const loadConversations = useCallback(async () => {
+    if (!myId) return;
+    try {
+      const res = await api(
+        'messages?select=*&or=(sender_id.eq.' + myId + ',recipient_id.eq.' + myId +
+          ')&order=created_at.desc&limit=300'
+      );
+      const rows = await res.json();
+      if (!Array.isArray(rows)) return;
+      const map = {};
+      rows.forEach((m) => {
+        const other = m.sender_id === myId ? m.recipient_id : m.sender_id;
+        if (!map[other]) map[other] = { id: other, last: m, unread: 0 };
+        if (m.recipient_id === myId && !m.read) map[other].unread += 1;
+      });
+      const list = Object.values(map);
+      setConversations(list);
+      const ids = list.map((c) => c.id);
+      if (ids.length) {
+        const pr = await api('profiles?select=id,username&id=in.(' + ids.join(',') + ')').then((r) => r.json());
+        if (Array.isArray(pr)) {
+          const m = {};
+          pr.forEach((x) => {
+            m[x.id] = x.username;
+          });
+          setNames((prev) => ({ ...prev, ...m }));
+        }
+      }
+    } catch (e) {
+      // offline
+    }
+  }, [myId]);
+
+  const loadMessages = async (otherId) => {
+    if (!myId || !otherId) return;
+    try {
+      const res = await api(
+        'messages?select=*&or=(and(sender_id.eq.' + myId + ',recipient_id.eq.' + otherId +
+          '),and(sender_id.eq.' + otherId + ',recipient_id.eq.' + myId +
+          '))&order=created_at.asc&limit=300'
+      );
+      const rows = await res.json();
+      if (Array.isArray(rows)) {
+        setChatMessages(rows);
+        if (rows.some((m) => m.recipient_id === myId && !m.read)) {
+          api(
+            'messages?recipient_id=eq.' + myId + '&sender_id=eq.' + otherId + '&read=eq.false',
+            {
+              method: 'PATCH',
+              headers: { Prefer: 'return=minimal' },
+              body: JSON.stringify({ read: true }),
+            }
+          ).catch(() => {});
+        }
+      }
+    } catch (e) {
+      // offline
+    }
+  };
+
+  const openChat = (userId, name) => {
+    if (!userId || userId === myId) return;
+    setNames((prev) => ({ ...prev, [userId]: name || prev[userId] }));
+    setChatWith({ id: userId, username: name || nameOf(userId) });
+    setChatMessages([]);
+    setChatText('');
+    setChatError('');
+    loadMessages(userId);
+  };
+
+  const sendMessage = async () => {
+    const text = chatText.trim();
+    if (!text || !chatWith || !myId || chatSending) return;
+    const token = await ensureToken();
+    if (!token) return;
+    setChatText('');
+    setChatError('');
+    setChatSending(true);
+    try {
+      const res = await api('messages', {
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({
+          sender_id: myId,
+          recipient_id: chatWith.id,
+          content: text,
+        }),
+      });
+      const data = await res.json();
+      if (Array.isArray(data) && data[0]) {
+        setChatMessages((p) => [...p, data[0]]);
+      } else {
+        setChatText(text);
+        setChatError(t('errGeneric'));
+      }
+    } catch (e) {
+      setChatText(text);
+      setChatError(t('errGeneric'));
+    }
+    setChatSending(false);
+  };
+
+  useEffect(() => {
+    if (!myId) return;
+    loadConversations();
+    const timer = setInterval(loadConversations, 10000);
+    return () => clearInterval(timer);
+  }, [myId, loadConversations]);
+
+  useEffect(() => {
+    if (!chatWith) return;
+    const timer = setInterval(() => loadMessages(chatWith.id), 3000);
+    return () => clearInterval(timer);
+  }, [chatWith]);
 
   const loadCounts = async (userId) => {
     try {
@@ -1284,6 +1428,9 @@ function AppContent() {
     );
   };
 
+  const totalUnread = conversations
+    .filter((c) => !blocked[c.id])
+    .reduce((sum, c) => sum + c.unread, 0);
   const followedPeople = people.filter((pe) => following[pe.id]);
   const discoverPeople = people.filter((pe) => pe.id !== myId && !blocked[pe.id]);
 
@@ -1439,6 +1586,13 @@ function AppContent() {
               </TouchableOpacity>
 
               <TouchableOpacity
+                style={[styles.logoutBtn, { marginTop: 14 }]}
+                onPress={() => openChat(viewUser.id, viewUser.username)}
+              >
+                <Text style={styles.logoutText}>{t('messageBtn')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
                 style={styles.logoutBtn}
                 onPress={() => blockUser(viewUser.id, viewUser.username)}
               >
@@ -1466,13 +1620,57 @@ function AppContent() {
           ) : activeTab === 'Chat' ? (
             <View style={{ marginTop: 30 }}>
               <Text style={styles.screenTitle}>{t('messagesTitle')}</Text>
-              <Text style={styles.screenSub}>{t('yourConvos')}</Text>
-              <Text style={{ color: 'white', marginTop: 35 }}>
-                {t('noMessages')}
-              </Text>
-              <Text style={{ color: '#999999', marginTop: 10 }}>
-                {t('startConnecting')}
-              </Text>
+              {conversations.filter((c) => !blocked[c.id]).length === 0 ? (
+                <Text style={styles.screenSub}>{t('noChats')}</Text>
+              ) : (
+                conversations
+                  .filter((c) => !blocked[c.id])
+                  .map((c) => (
+                    <TouchableOpacity
+                      key={c.id}
+                      style={styles.creatorRow}
+                      onPress={() => openChat(c.id, nameOf(c.id))}
+                    >
+                      <View style={styles.smallAvatar}>
+                        <Text style={styles.avatarLetter}>
+                          {nameOf(c.id).charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={styles.convName}>@{nameOf(c.id)}</Text>
+                        <Text numberOfLines={1} style={styles.chatPreview}>
+                          {c.last.content}
+                        </Text>
+                      </View>
+                      {c.unread > 0 ? (
+                        <View style={styles.badge}>
+                          <Text style={styles.badgeText}>{c.unread}</Text>
+                        </View>
+                      ) : null}
+                    </TouchableOpacity>
+                  ))
+              )}
+
+              {followedPeople.length > 0 ? (
+                <Text style={[styles.screenSub, { marginTop: 26 }]}>
+                  {t('chatWithFollowed')}
+                </Text>
+              ) : null}
+              {followedPeople.map((pe) => (
+                <TouchableOpacity
+                  key={pe.id}
+                  style={styles.creatorRow}
+                  onPress={() => openChat(pe.id, pe.username)}
+                >
+                  <View style={styles.smallAvatar}>
+                    <Text style={styles.avatarLetter}>
+                      {pe.username.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text style={styles.creatorName}>@{pe.username}</Text>
+                  <Text style={{ fontSize: 20 }}>💬</Text>
+                </TouchableOpacity>
+              ))}
             </View>
           ) : activeTab === 'Create' ? (
             <View style={{ marginTop: 40 }}>
@@ -1657,6 +1855,88 @@ function AppContent() {
       </Modal>
 
       <Modal
+        visible={chatWith !== null}
+        animationType="slide"
+        onRequestClose={() => {
+          setChatWith(null);
+          loadConversations();
+        }}
+      >
+        <KeyboardAvoidingView
+          style={[styles.container, { paddingTop: insets.top }]}
+          behavior="padding"
+        >
+          <View style={styles.chatHeader}>
+            <TouchableOpacity
+              onPress={() => {
+                setChatWith(null);
+                loadConversations();
+              }}
+            >
+              <Text style={styles.chatBack}>‹</Text>
+            </TouchableOpacity>
+            <Text style={styles.chatTitle}>@{chatWith ? chatWith.username : ''}</Text>
+            <TouchableOpacity
+              onPress={() => chatWith && openReport('user', chatWith.id)}
+            >
+              <Text style={styles.flag}>⚑</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            ref={chatScrollRef}
+            style={{ flex: 1 }}
+            contentContainerStyle={{ padding: 14 }}
+            keyboardShouldPersistTaps="handled"
+            onContentSizeChange={() =>
+              chatScrollRef.current && chatScrollRef.current.scrollToEnd({ animated: true })
+            }
+          >
+            {chatMessages.map((m) => {
+              const mine = m.sender_id === myId;
+              return (
+                <TouchableOpacity
+                  key={m.id}
+                  activeOpacity={0.8}
+                  onLongPress={
+                    mine
+                      ? undefined
+                      : () =>
+                          Alert.alert(t('reportMessage'), '', [
+                            { text: t('cancel'), style: 'cancel' },
+                            {
+                              text: t('reportTitle'),
+                              onPress: () => openReport('message', m.id),
+                            },
+                          ])
+                  }
+                  style={[styles.bubble, mine ? styles.bubbleMe : styles.bubbleThem]}
+                >
+                  <Text style={styles.bubbleText}>{m.content}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {chatError ? <Text style={styles.chatErr}>{chatError}</Text> : null}
+
+          <View style={[styles.chatInputRow, { paddingBottom: insets.bottom + 10 }]}>
+            <TextInput
+              style={styles.commentInput}
+              placeholder={t('messagePlaceholder')}
+              placeholderTextColor="#777777"
+              value={chatText}
+              onChangeText={setChatText}
+              maxLength={1000}
+            />
+            <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
+              <Text style={styles.sendBtnText}>{t('send')}</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal
         visible={menuVideo !== null}
         transparent
         animationType="fade"
@@ -1790,6 +2070,11 @@ function AppContent() {
               >
                 {icon}
               </Text>
+              {key === 'Chat' && totalUnread > 0 ? (
+                <View style={styles.navBadge}>
+                  <Text style={styles.badgeText}>{totalUnread > 9 ? '9+' : totalUnread}</Text>
+                </View>
+              ) : null}
               <Text
                 style={[
                   styles.navText,
@@ -2419,6 +2704,107 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     marginTop: 30,
+  },
+
+  chatHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#2A2A2A',
+  },
+
+  chatBack: {
+    color: '#FFFFFF',
+    fontSize: 34,
+    paddingHorizontal: 8,
+    lineHeight: 36,
+  },
+
+  chatTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: 'bold',
+  },
+
+  bubble: {
+    maxWidth: '78%',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    marginBottom: 8,
+  },
+
+  bubbleMe: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#A855F7',
+  },
+
+  bubbleThem: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#242424',
+  },
+
+  bubbleText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+  },
+
+  chatInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    borderTopWidth: 0.5,
+    borderTopColor: '#2A2A2A',
+  },
+
+  chatErr: {
+    color: '#FF6B6B',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+
+  convName: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
+  chatPreview: {
+    color: '#999999',
+    marginTop: 2,
+  },
+
+  badge: {
+    backgroundColor: '#F43F9E',
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+
+  navBadge: {
+    position: 'absolute',
+    top: -2,
+    right: 14,
+    backgroundColor: '#F43F9E',
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
   },
 
   primaryBtn: {
