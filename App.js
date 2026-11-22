@@ -14,14 +14,28 @@ import {
   Modal,
   KeyboardAvoidingView,
   Alert,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  registerGlobals,
+  LiveKitRoom,
+  useTracks,
+  VideoTrack,
+  isTrackReference,
+  AudioSession,
+} from '@livekit/react-native';
+import { Track } from 'livekit-client';
+
+registerGlobals();
 
 const SUPABASE_URL = 'https://izaovotpdkfabizdzpew.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_pZGo3ceCADgIYO_NF85Ujw_exlkdErd';
+const LIVEKIT_URL = 'wss://vyra-4d6a4baa.livekit.cloud';
 
 const { width, height } = Dimensions.get('window');
 
@@ -133,6 +147,14 @@ const STRINGS = {
     usernameTaken: 'This username is already taken.',
     confirmEmail: 'Check your email to confirm your account, then log in.',
     errGeneric: 'Something went wrong. Try again.',
+    goLive: 'Go live',
+    liveTitlePlaceholder: 'Live title (optional)',
+    liveNow: 'Live now',
+    noLives: 'No one is live right now.',
+    endLive: 'End',
+    livePerm: 'Camera and microphone permission is required.',
+    liveEnded: 'This live has ended.',
+    liveMsgPlaceholder: 'Say something...',
     messagePlaceholder: 'Write a message...',
     messageBtn: 'Message',
     noChats: 'No conversations yet. Open a profile and tap Message.',
@@ -233,6 +255,14 @@ const STRINGS = {
     usernameTaken: 'اسم المستخدم مستخدم من قبل.',
     confirmEmail: 'افتح بريدك لتأكيد الحساب ثم سجّل الدخول.',
     errGeneric: 'حدث خطأ. حاول مرة أخرى.',
+    goLive: 'ابدأ بثاً مباشراً',
+    liveTitlePlaceholder: 'عنوان البث (اختياري)',
+    liveNow: 'مباشر الآن',
+    noLives: 'لا يوجد بث مباشر الآن.',
+    endLive: 'إنهاء',
+    livePerm: 'نحتاج إذن الكاميرا والميكروفون.',
+    liveEnded: 'انتهى هذا البث.',
+    liveMsgPlaceholder: 'اكتب شيئاً...',
     messagePlaceholder: 'اكتب رسالة...',
     messageBtn: 'مراسلة',
     noChats: 'لا توجد محادثات بعد. افتح ملف شخص واضغط مراسلة.',
@@ -333,6 +363,14 @@ const STRINGS = {
     usernameTaken: "Ce nom d'utilisateur est déjà pris.",
     confirmEmail: 'Vérifie ton e-mail pour confirmer ton compte, puis connecte-toi.',
     errGeneric: "Une erreur s'est produite. Réessaie.",
+    goLive: 'Passer en direct',
+    liveTitlePlaceholder: 'Titre du direct (facultatif)',
+    liveNow: 'En direct maintenant',
+    noLives: "Personne n'est en direct pour le moment.",
+    endLive: 'Terminer',
+    livePerm: "L'autorisation caméra et micro est requise.",
+    liveEnded: 'Ce direct est terminé.',
+    liveMsgPlaceholder: 'Dis quelque chose...',
     messagePlaceholder: 'Écris un message...',
     messageBtn: 'Message',
     noChats: "Aucune conversation. Ouvre un profil et touche Message.",
@@ -410,6 +448,57 @@ const NAV = [
   ['Chat', '💬', 'navChat'],
   ['Profile', '👤', 'navProfile'],
 ];
+
+function StageView({ mirror }) {
+  const tracks = useTracks([Track.Source.Camera]);
+  const ref = tracks.find((tr) => isTrackReference(tr));
+  return (
+    <View style={styles.stage}>
+      {ref ? (
+        <VideoTrack
+          trackRef={ref}
+          style={StyleSheet.absoluteFill}
+          objectFit="cover"
+          mirror={mirror}
+        />
+      ) : (
+        <ActivityIndicator color="#A855F7" size="large" />
+      )}
+    </View>
+  );
+}
+
+function LiveStage({ serverUrl, token, publish }) {
+  useEffect(() => {
+    (async () => {
+      try {
+        await AudioSession.startAudioSession();
+      } catch (e) {
+        // audio session not started
+      }
+    })();
+    return () => {
+      try {
+        AudioSession.stopAudioSession();
+      } catch (e) {
+        // ignore
+      }
+    };
+  }, []);
+
+  return (
+    <LiveKitRoom
+      serverUrl={serverUrl}
+      token={token}
+      connect={true}
+      audio={publish}
+      video={publish}
+      options={{ adaptiveStream: { pixelDensity: 'screen' } }}
+    >
+      <StageView mirror={publish} />
+    </LiveKitRoom>
+  );
+}
 
 function VideoPlayer({ url, active }) {
   const player = useVideoPlayer(url, (p) => {
@@ -656,6 +745,13 @@ function AppContent() {
   const [chatSending, setChatSending] = useState(false);
   const [chatError, setChatError] = useState('');
   const chatScrollRef = useRef(null);
+  const [lives, setLives] = useState([]);
+  const [liveSession, setLiveSession] = useState(null);
+  const [liveTitle, setLiveTitle] = useState('');
+  const [liveBusy, setLiveBusy] = useState(false);
+  const [liveError, setLiveError] = useState('');
+  const [liveMsgs, setLiveMsgs] = useState([]);
+  const [liveText, setLiveText] = useState('');
   const [pageHeight, setPageHeight] = useState(height - 85);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [remote, setRemote] = useState([]);
@@ -993,6 +1089,176 @@ function AppContent() {
     const timer = setInterval(() => loadMessages(chatWith.id), 3000);
     return () => clearInterval(timer);
   }, [chatWith]);
+
+  const loadLives = useCallback(async () => {
+    try {
+      const since = new Date(Date.now() - 12 * 3600 * 1000).toISOString();
+      const res = await api(
+        'lives?select=*&ended_at=is.null&started_at=gt.' +
+          encodeURIComponent(since) +
+          '&order=started_at.desc&limit=30'
+      );
+      const rows = await res.json();
+      if (Array.isArray(rows)) setLives(rows);
+    } catch (e) {
+      // offline
+    }
+  }, []);
+
+  const getLiveToken = async (room, publish) => {
+    const jwt = await ensureToken();
+    if (!jwt) throw new Error('login required');
+    const res = await fetch(SUPABASE_URL + '/functions/v1/livekit-token', {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: 'Bearer ' + jwt,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ room: room, publish: publish, name: myName }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.token) {
+      throw new Error(data.error || data.message || 'HTTP ' + res.status);
+    }
+    return data.token;
+  };
+
+  const startLive = async () => {
+    if (!myId || liveBusy) return;
+    setLiveBusy(true);
+    setLiveError('');
+    try {
+      if (Platform.OS === 'android') {
+        const r = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+        ]);
+        if (
+          r[PermissionsAndroid.PERMISSIONS.CAMERA] !== 'granted' ||
+          r[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] !== 'granted'
+        ) {
+          throw new Error(t('livePerm'));
+        }
+      }
+      const room = 'live-' + myId;
+      await api('lives?host_id=eq.' + myId + '&ended_at=is.null', {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ ended_at: new Date().toISOString() }),
+      });
+      const ins = await api('lives', {
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({
+          host_id: myId,
+          host_name: myName,
+          title: liveTitle.trim() || null,
+          room: room,
+        }),
+      });
+      const rows = await ins.json();
+      if (!Array.isArray(rows) || !rows[0]) throw new Error(t('errGeneric'));
+      const lkToken = await getLiveToken(room, true);
+      setLiveMsgs([]);
+      setLiveText('');
+      setLiveSession({ live: rows[0], token: lkToken, publish: true });
+    } catch (e) {
+      setLiveError(String((e && e.message) || e).slice(0, 200));
+    }
+    setLiveBusy(false);
+  };
+
+  const joinLive = async (live) => {
+    if (liveBusy) return;
+    setLiveBusy(true);
+    setLiveError('');
+    try {
+      const lkToken = await getLiveToken(live.room, false);
+      setLiveMsgs([]);
+      setLiveText('');
+      setLiveSession({ live: live, token: lkToken, publish: false });
+    } catch (e) {
+      setLiveError(String((e && e.message) || e).slice(0, 200));
+    }
+    setLiveBusy(false);
+  };
+
+  const leaveLive = async () => {
+    const sess = liveSession;
+    setLiveSession(null);
+    if (sess && sess.publish) {
+      try {
+        await api('lives?id=eq.' + sess.live.id, {
+          method: 'PATCH',
+          headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({ ended_at: new Date().toISOString() }),
+        });
+      } catch (e) {
+        // will expire by itself
+      }
+    }
+    loadLives();
+  };
+
+  const loadLiveMsgs = async () => {
+    if (!liveSession) return;
+    try {
+      const res = await api(
+        'live_messages?select=*&live_id=eq.' + liveSession.live.id +
+          '&order=created_at.desc&limit=40'
+      );
+      const rows = await res.json();
+      if (Array.isArray(rows)) setLiveMsgs(rows.reverse());
+      if (!liveSession.publish) {
+        const lr = await api(
+          'lives?select=ended_at&id=eq.' + liveSession.live.id
+        ).then((r) => r.json());
+        if (Array.isArray(lr) && lr[0] && lr[0].ended_at) {
+          setLiveSession(null);
+          setLiveError(t('liveEnded'));
+          loadLives();
+        }
+      }
+    } catch (e) {
+      // offline
+    }
+  };
+
+  const sendLiveMsg = async () => {
+    const text = liveText.trim();
+    if (!text || !liveSession || !myId) return;
+    setLiveText('');
+    try {
+      await api('live_messages', {
+        method: 'POST',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          live_id: liveSession.live.id,
+          user_id: myId,
+          username: myName,
+          content: text,
+        }),
+      });
+      loadLiveMsgs();
+    } catch (e) {
+      // not sent
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'Live' || !myId) return;
+    loadLives();
+    const timer = setInterval(loadLives, 8000);
+    return () => clearInterval(timer);
+  }, [activeTab, myId, loadLives]);
+
+  useEffect(() => {
+    if (!liveSession) return;
+    loadLiveMsgs();
+    const timer = setInterval(loadLiveMsgs, 2500);
+    return () => clearInterval(timer);
+  }, [liveSession]);
 
   const loadCounts = async (userId) => {
     try {
@@ -1431,6 +1697,7 @@ function AppContent() {
   const totalUnread = conversations
     .filter((c) => !blocked[c.id])
     .reduce((sum, c) => sum + c.unread, 0);
+  const visibleLives = lives.filter((l) => !blocked[l.host_id]);
   const followedPeople = people.filter((pe) => following[pe.id]);
   const discoverPeople = people.filter((pe) => pe.id !== myId && !blocked[pe.id]);
 
@@ -1611,11 +1878,61 @@ function AppContent() {
               </TouchableOpacity>
             </View>
           ) : activeTab === 'Live' ? (
-            <View style={{ alignItems: 'center', marginTop: 70 }}>
-              <Text style={styles.liveBig}>📡</Text>
-              <Text style={styles.liveTitle}>{t('liveTitle')}</Text>
-              <Text style={styles.liveSoon}>{t('liveSoon')}</Text>
-              <Text style={styles.liveInfo}>{t('liveInfo')}</Text>
+            <View style={{ marginTop: 30 }}>
+              <Text style={styles.liveHead}>{t('liveTitle')}</Text>
+
+              <TextInput
+                style={styles.input}
+                placeholder={t('liveTitlePlaceholder')}
+                placeholderTextColor="#777777"
+                value={liveTitle}
+                onChangeText={setLiveTitle}
+                maxLength={80}
+              />
+
+              <TouchableOpacity
+                style={[styles.goLiveBtn, { opacity: liveBusy ? 0.6 : 1 }]}
+                onPress={startLive}
+                disabled={liveBusy}
+              >
+                {liveBusy ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.primaryBtnText}>📡 {t('goLive')}</Text>
+                )}
+              </TouchableOpacity>
+
+              {liveError ? <Text style={styles.authError}>{liveError}</Text> : null}
+
+              <Text style={[styles.screenSub, { marginTop: 28 }]}>{t('liveNow')}</Text>
+              {visibleLives.length === 0 ? (
+                <Text style={{ color: '#777777', marginTop: 10 }}>{t('noLives')}</Text>
+              ) : (
+                visibleLives.map((l) => (
+                  <TouchableOpacity
+                    key={l.id}
+                    style={styles.creatorRow}
+                    onPress={() => joinLive(l)}
+                  >
+                    <View style={styles.smallAvatar}>
+                      <Text style={styles.avatarLetter}>
+                        {String(l.host_name || '?').charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={styles.convName}>@{l.host_name}</Text>
+                      {l.title ? (
+                        <Text numberOfLines={1} style={styles.chatPreview}>
+                          {l.title}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <View style={styles.liveChip}>
+                      <Text style={styles.liveChipText}>LIVE</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
             </View>
           ) : activeTab === 'Chat' ? (
             <View style={{ marginTop: 30 }}>
@@ -1850,6 +2167,67 @@ function AppContent() {
                 <Text style={styles.sendBtnText}>{t('send')}</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal
+        visible={liveSession !== null}
+        animationType="slide"
+        onRequestClose={leaveLive}
+      >
+        <KeyboardAvoidingView
+          style={[styles.container, { paddingTop: insets.top }]}
+          behavior="padding"
+        >
+          <View style={{ flex: 1 }}>
+            {liveSession ? (
+              <LiveStage
+                serverUrl={LIVEKIT_URL}
+                token={liveSession.token}
+                publish={liveSession.publish}
+              />
+            ) : null}
+
+            <View style={styles.liveTop} pointerEvents="box-none">
+              <View style={styles.liveChip}>
+                <Text style={styles.liveChipText}>LIVE</Text>
+              </View>
+              <Text style={styles.liveHost}>
+                @{liveSession ? liveSession.live.host_name : ''}
+              </Text>
+              <TouchableOpacity style={styles.liveCloseBtn} onPress={leaveLive}>
+                <Text style={styles.liveClose}>
+                  {liveSession && liveSession.publish ? t('endLive') : '✕'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.liveChat} pointerEvents="box-none">
+              {liveMsgs
+                .filter((m) => !blocked[m.user_id])
+                .slice(-6)
+                .map((m) => (
+                  <Text key={m.id} style={styles.liveMsg}>
+                    <Text style={{ fontWeight: 'bold', color: '#D8B4FE' }}>@{m.username} </Text>
+                    {m.content}
+                  </Text>
+                ))}
+            </View>
+          </View>
+
+          <View style={[styles.chatInputRow, { paddingBottom: insets.bottom + 10 }]}>
+            <TextInput
+              style={styles.commentInput}
+              placeholder={t('liveMsgPlaceholder')}
+              placeholderTextColor="#777777"
+              value={liveText}
+              onChangeText={setLiveText}
+              maxLength={200}
+            />
+            <TouchableOpacity style={styles.sendBtn} onPress={sendLiveMsg}>
+              <Text style={styles.sendBtnText}>{t('send')}</Text>
+            </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -2805,6 +3183,95 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
+  },
+
+  stage: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  liveHead: {
+    color: '#FF2D55',
+    fontSize: 30,
+    fontWeight: '900',
+    letterSpacing: 3,
+  },
+
+  goLiveBtn: {
+    backgroundColor: '#FF2D55',
+    paddingVertical: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 18,
+  },
+
+  liveChip: {
+    backgroundColor: '#FF2D55',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+
+  liveChipText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+
+  liveTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+
+  liveHost: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    flex: 1,
+    marginLeft: 10,
+  },
+
+  liveCloseBtn: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+
+  liveClose: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+
+  liveChat: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    bottom: 10,
+  },
+
+  liveMsg: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    marginTop: 4,
+    overflow: 'hidden',
   },
 
   primaryBtn: {
