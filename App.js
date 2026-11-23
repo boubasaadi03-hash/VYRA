@@ -1108,20 +1108,15 @@ function AppContent() {
   const getLiveToken = async (room, publish) => {
     const jwt = await ensureToken();
     if (!jwt) throw new Error('login required');
-    const res = await fetch(SUPABASE_URL + '/functions/v1/livekit-token', {
+    const res = await api('rpc/livekit_token', {
       method: 'POST',
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: 'Bearer ' + jwt,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ room: room, publish: publish, name: myName }),
+      body: JSON.stringify({ p_room: room, p_publish: publish, p_name: myName }),
     });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.token) {
-      throw new Error(data.error || data.message || 'HTTP ' + res.status);
+    const data = await res.json().catch(() => null);
+    if (!res.ok || typeof data !== 'string') {
+      throw new Error((data && (data.message || data.error)) || 'HTTP ' + res.status);
     }
-    return data.token;
+    return data;
   };
 
   const startLive = async () => {
