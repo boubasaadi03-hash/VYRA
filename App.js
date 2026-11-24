@@ -37,6 +37,9 @@ const SUPABASE_URL = 'https://izaovotpdkfabizdzpew.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_pZGo3ceCADgIYO_NF85Ujw_exlkdErd';
 const LIVEKIT_URL = 'wss://vyra-4d6a4baa.livekit.cloud';
 
+// Temporary development mode: use built-in demo videos while Supabase is unavailable.
+const OFFLINE_DEMO_MODE = true;
+
 const { width, height } = Dimensions.get('window');
 
 let currentToken = null;
@@ -130,6 +133,9 @@ const STRINGS = {
     noVideos: 'No videos yet',
     followHint: 'Follow creators in For You to see their videos here.',
     tagline: 'Your world. Your moments.',
+    guestBrowse: 'Continue as guest',
+    guestNeedAccount: 'Create an account or log in to use this feature.',
+    guestSignIn: 'Log in / Sign up',
     login: 'Log in',
     register: 'Sign up',
     email: 'Email',
@@ -238,6 +244,9 @@ const STRINGS = {
     noVideos: 'لا توجد فيديوهات بعد',
     followHint: 'تابع مبدعين في «لك» لتظهر فيديوهاتهم هنا.',
     tagline: 'عالمك. لحظاتك.',
+    guestBrowse: 'المتابعة كزائر',
+    guestNeedAccount: 'أنشئ حساباً أو سجّل الدخول لاستخدام هذه الميزة.',
+    guestSignIn: 'تسجيل الدخول / إنشاء حساب',
     login: 'تسجيل الدخول',
     register: 'إنشاء حساب',
     email: 'البريد الإلكتروني',
@@ -346,6 +355,9 @@ const STRINGS = {
     noVideos: 'Pas encore de vidéos',
     followHint: 'Suis des créateurs dans « Pour toi » pour voir leurs vidéos ici.',
     tagline: 'Ton monde. Tes moments.',
+    guestBrowse: 'Continuer en invité',
+    guestNeedAccount: 'Créez un compte ou connectez-vous pour utiliser cette fonction.',
+    guestSignIn: 'Connexion / Inscription',
     login: 'Se connecter',
     register: "S'inscrire",
     email: 'E-mail',
@@ -523,7 +535,7 @@ function VideoPlayer({ url, active }) {
   );
 }
 
-function AuthScreen({ t, lang, changeLang, onSession }) {
+function AuthScreen({ t, lang, changeLang, onSession, onGuest }) {
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
@@ -697,6 +709,12 @@ function AuthScreen({ t, lang, changeLang, onSession }) {
           </Text>
         </TouchableOpacity>
 
+        <TouchableOpacity onPress={onGuest} style={{ marginTop: 18, padding: 12 }}>
+          <Text style={[styles.authSwitch, { color: '#A855F7', fontWeight: 'bold' }]}>
+            {t('guestBrowse')}
+          </Text>
+        </TouchableOpacity>
+
         <View style={[styles.langRow, { justifyContent: 'center', marginTop: 30 }]}>
           {[
             ['fr', 'Français'],
@@ -725,6 +743,7 @@ function AppContent() {
   const [myLikes, setMyLikes] = useState({});
   const [stats, setStats] = useState({});
   const [session, setSession] = useState(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const [people, setPeople] = useState([]);
   const [blocked, setBlocked] = useState({});
@@ -772,6 +791,7 @@ function AppContent() {
   const myName = (me && me.user_metadata && me.user_metadata.username) || 'user';
 
   const saveSession = async (sess) => {
+    setIsGuest(false);
     currentToken = sess.access_token;
     setSession(sess);
     try {
@@ -782,6 +802,7 @@ function AppContent() {
   };
 
   const logout = async () => {
+    setIsGuest(false);
     try {
       if (currentToken) await authFetch('/logout', null, currentToken);
     } catch (e) {
@@ -885,8 +906,10 @@ function AppContent() {
       }
       setAuthReady(true);
     })();
-    loadVideos();
-    loadStats();
+    if (!OFFLINE_DEMO_MODE) {
+      loadVideos();
+      loadStats();
+    }
   }, [loadVideos, loadStats]);
 
   useEffect(() => {
@@ -906,7 +929,13 @@ function AppContent() {
   }, [myId]);
 
   const loadSocial = useCallback(async () => {
-    if (!myId) return;
+    if (!myId) {
+      setPeople(demoVideos.map((video, index) => ({
+        id: 'demo_creator_' + index,
+        username: video.user,
+      })));
+      return;
+    }
     try {
       const [f, b, pe] = await Promise.all([
         api('follows?select=followed_id&follower_id=eq.' + myId).then((r) => r.json()),
@@ -962,6 +991,12 @@ function AppContent() {
   const changeLang = (code) => {
     setLang(code);
     AsyncStorage.setItem('vyra_lang', code).catch(() => {});
+  };
+
+  const requireAccount = () => {
+    if (myId) return true;
+    Alert.alert('VYRA', t('guestNeedAccount'));
+    return false;
   };
 
   const switchFeed = (feed) => {
@@ -1036,6 +1071,7 @@ function AppContent() {
   };
 
   const openChat = (userId, name) => {
+    if (!requireAccount()) return;
     if (!userId || userId === myId) return;
     setNames((prev) => ({ ...prev, [userId]: name || prev[userId] }));
     setChatWith({ id: userId, username: name || nameOf(userId) });
@@ -1046,6 +1082,7 @@ function AppContent() {
   };
 
   const sendMessage = async () => {
+    if (!requireAccount()) return;
     const text = chatText.trim();
     if (!text || !chatWith || !myId || chatSending) return;
     const token = await ensureToken();
@@ -1120,6 +1157,7 @@ function AppContent() {
   };
 
   const startLive = async () => {
+    if (!requireAccount()) return;
     if (!myId || liveBusy) return;
     setLiveBusy(true);
     setLiveError('');
@@ -1165,6 +1203,7 @@ function AppContent() {
   };
 
   const joinLive = async (live) => {
+    if (!requireAccount()) return;
     if (liveBusy) return;
     setLiveBusy(true);
     setLiveError('');
@@ -1221,6 +1260,7 @@ function AppContent() {
   };
 
   const sendLiveMsg = async () => {
+    if (!requireAccount()) return;
     const text = liveText.trim();
     if (!text || !liveSession || !myId) return;
     setLiveText('');
@@ -1285,6 +1325,7 @@ function AppContent() {
   };
 
   const toggleFollow = async (userId) => {
+    if (!requireAccount()) return;
     if (!userId || !myId || userId === myId) return;
     const token = await ensureToken();
     if (!token) return;
@@ -1363,6 +1404,7 @@ function AppContent() {
   };
 
   const openReport = (type, id) => {
+    if (!requireAccount()) return;
     setMenuVideo(null);
     setReportTarget({ type: type, id: String(id) });
     setReportReason('');
@@ -1395,6 +1437,7 @@ function AppContent() {
   };
 
   const toggleLike = async (video) => {
+    if (!requireAccount()) return;
     const token = await ensureToken();
     if (!token || !myId) return;
     const id = video.id;
@@ -1438,6 +1481,7 @@ function AppContent() {
   };
 
   const openComments = async (video) => {
+    if (!requireAccount()) return;
     setCommentsFor(video.id);
     setComments([]);
     setCommentText('');
@@ -1457,6 +1501,7 @@ function AppContent() {
   };
 
   const sendComment = async () => {
+    if (!requireAccount()) return;
     const text = commentText.trim();
     if (!text || !commentsFor) return;
     const vid = commentsFor;
@@ -1488,6 +1533,7 @@ function AppContent() {
   };
 
   const pickVideo = async () => {
+    if (!requireAccount()) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['videos'],
       quality: 1,
@@ -1556,7 +1602,12 @@ function AppContent() {
     <View style={styles.header} pointerEvents="box-none">
       <View style={styles.headerRow}>
         <Text style={styles.logo}>VYRA</Text>
-        <TouchableOpacity onPress={() => setActiveTab('Follow')}>
+        {isGuest ? (
+          <TouchableOpacity onPress={() => setIsGuest(false)} style={{ marginLeft: 8 }}>
+            <Text style={{ color: '#C084FC', fontSize: 11, fontWeight: 'bold' }}>{t('guestSignIn')}</Text>
+          </TouchableOpacity>
+        ) : null}
+        <TouchableOpacity onPress={() => setActiveTab('Follow') }>
           <Text style={styles.headerIcon}>🔍</Text>
         </TouchableOpacity>
         <View style={styles.pill}>
@@ -1731,13 +1782,14 @@ function AppContent() {
     );
   }
 
-  if (!session) {
+  if (!session && !isGuest) {
     return (
       <AuthScreen
         t={t}
         lang={lang}
         changeLang={changeLang}
         onSession={saveSession}
+        onGuest={() => setIsGuest(true)}
       />
     );
   }
@@ -2432,7 +2484,16 @@ function AppContent() {
             <TouchableOpacity
               key={key}
               style={styles.navItem}
-              onPress={() => setActiveTab(key)}
+              onPress={() => {
+                if (isGuest && !['Home', 'Follow'].includes(key)) {
+                  Alert.alert('VYRA', t('guestNeedAccount'), [
+                    { text: t('cancel'), style: 'cancel' },
+                    { text: t('guestSignIn'), onPress: () => setIsGuest(false) },
+                  ]);
+                  return;
+                }
+                setActiveTab(key);
+              }}
             >
               <Text
                 style={[
