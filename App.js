@@ -14,31 +14,15 @@ import {
   Modal,
   KeyboardAvoidingView,
   Alert,
-  PermissionsAndroid,
-  Platform,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  registerGlobals,
-  LiveKitRoom,
-  useTracks,
-  VideoTrack,
-  isTrackReference,
-  AudioSession,
-} from '@livekit/react-native';
-import { Track } from 'livekit-client';
-
-registerGlobals();
+import { LinearGradient } from 'expo-linear-gradient';
 
 const SUPABASE_URL = 'https://izaovotpdkfabizdzpew.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_pZGo3ceCADgIYO_NF85Ujw_exlkdErd';
-const LIVEKIT_URL = 'wss://vyra-4d6a4baa.livekit.cloud';
-
-// Temporary development mode: use built-in demo videos while Supabase is unavailable.
-const OFFLINE_DEMO_MODE = true;
 
 const { width, height } = Dimensions.get('window');
 
@@ -86,7 +70,7 @@ const STRINGS = {
   en: {
     tabForYou: 'For You',
     tabFollowing: 'Following',
-    tabTrending: 'Trending',
+    tabTrending: 'Discover',
     points: 'Points',
     level: 'Level',
     btnFollow: 'Follow',
@@ -133,9 +117,6 @@ const STRINGS = {
     noVideos: 'No videos yet',
     followHint: 'Follow creators in For You to see their videos here.',
     tagline: 'Your world. Your moments.',
-    guestBrowse: 'Continue as guest',
-    guestNeedAccount: 'Create an account or log in to use this feature.',
-    guestSignIn: 'Log in / Sign up',
     login: 'Log in',
     register: 'Sign up',
     email: 'Email',
@@ -153,14 +134,31 @@ const STRINGS = {
     usernameTaken: 'This username is already taken.',
     confirmEmail: 'Check your email to confirm your account, then log in.',
     errGeneric: 'Something went wrong. Try again.',
-    goLive: 'Go live',
-    liveTitlePlaceholder: 'Live title (optional)',
-    liveNow: 'Live now',
-    noLives: 'No one is live right now.',
-    endLive: 'End',
-    livePerm: 'Camera and microphone permission is required.',
-    liveEnded: 'This live has ended.',
-    liveMsgPlaceholder: 'Say something...',
+    navDiscover: 'Discover',
+    navCreate: 'Create',
+    navRanking: 'Ranking',
+    roomsTitle: 'Chat rooms',
+    roomsSub: 'Join rooms from around the world',
+    roomGeneral: 'General rooms',
+    roomVoice: 'Voice rooms',
+    roomVideo: 'Video rooms',
+    roomPrivate: 'Private rooms',
+    createRoom: 'Create a room',
+    rewardsTitle: 'Rewards',
+    rewardsSub: 'Earn points and gifts',
+    myPoints: 'My points',
+    seeMore: 'See more',
+    adsTitle: 'Ads',
+    adsSub: 'Discover our partners',
+    adsBanner: 'Advertise with us!',
+    adsSoon: 'The ads platform is coming soon.',
+    soon: 'Coming soon',
+    soonText: 'This feature is not available yet.',
+    pointsRule: '1 point per like received, 2 per comment, 5 per video posted.',
+    giftsSoon: 'Gifts and badges are coming soon.',
+    rankingTitle: 'Ranking',
+    rankingSub: 'Top creators',
+    noRanking: 'No ranking yet.',
     messagePlaceholder: 'Write a message...',
     messageBtn: 'Message',
     noChats: 'No conversations yet. Open a profile and tap Message.',
@@ -197,7 +195,7 @@ const STRINGS = {
   ar: {
     tabForYou: 'لك',
     tabFollowing: 'المتابَعون',
-    tabTrending: 'الرائج',
+    tabTrending: 'اكتشف',
     points: 'نقاط',
     level: 'المستوى',
     btnFollow: 'متابعة',
@@ -244,9 +242,6 @@ const STRINGS = {
     noVideos: 'لا توجد فيديوهات بعد',
     followHint: 'تابع مبدعين في «لك» لتظهر فيديوهاتهم هنا.',
     tagline: 'عالمك. لحظاتك.',
-    guestBrowse: 'المتابعة كزائر',
-    guestNeedAccount: 'أنشئ حساباً أو سجّل الدخول لاستخدام هذه الميزة.',
-    guestSignIn: 'تسجيل الدخول / إنشاء حساب',
     login: 'تسجيل الدخول',
     register: 'إنشاء حساب',
     email: 'البريد الإلكتروني',
@@ -264,14 +259,31 @@ const STRINGS = {
     usernameTaken: 'اسم المستخدم مستخدم من قبل.',
     confirmEmail: 'افتح بريدك لتأكيد الحساب ثم سجّل الدخول.',
     errGeneric: 'حدث خطأ. حاول مرة أخرى.',
-    goLive: 'ابدأ بثاً مباشراً',
-    liveTitlePlaceholder: 'عنوان البث (اختياري)',
-    liveNow: 'مباشر الآن',
-    noLives: 'لا يوجد بث مباشر الآن.',
-    endLive: 'إنهاء',
-    livePerm: 'نحتاج إذن الكاميرا والميكروفون.',
-    liveEnded: 'انتهى هذا البث.',
-    liveMsgPlaceholder: 'اكتب شيئاً...',
+    navDiscover: 'اكتشف',
+    navCreate: 'إنشاء',
+    navRanking: 'الترتيب',
+    roomsTitle: 'غرف الدردشة',
+    roomsSub: 'انضم إلى غرف من حول العالم',
+    roomGeneral: 'غرف عامة',
+    roomVoice: 'غرف صوتية',
+    roomVideo: 'غرف فيديو',
+    roomPrivate: 'غرف خاصة',
+    createRoom: 'أنشئ غرفة',
+    rewardsTitle: 'المكافآت',
+    rewardsSub: 'اكسب نقاطاً وهدايا',
+    myPoints: 'نقاطي',
+    seeMore: 'المزيد',
+    adsTitle: 'الإعلانات',
+    adsSub: 'تعرّف على شركائنا',
+    adsBanner: 'أعلن معنا!',
+    adsSoon: 'منصة الإعلانات قادمة قريباً.',
+    soon: 'قريباً',
+    soonText: 'هذه الميزة غير متاحة بعد.',
+    pointsRule: 'نقطة لكل إعجاب، ونقطتان لكل تعليق، و5 نقاط لكل فيديو تنشره.',
+    giftsSoon: 'الهدايا والأوسمة قادمة قريباً.',
+    rankingTitle: 'الترتيب',
+    rankingSub: 'أفضل المبدعين',
+    noRanking: 'لا ترتيب بعد.',
     messagePlaceholder: 'اكتب رسالة...',
     messageBtn: 'مراسلة',
     noChats: 'لا توجد محادثات بعد. افتح ملف شخص واضغط مراسلة.',
@@ -306,9 +318,9 @@ const STRINGS = {
     dailyMoments: 'لحظات يومية',
   },
   fr: {
-    tabForYou: 'Pour toi',
+    tabForYou: 'Pour Vous',
     tabFollowing: 'Suivis',
-    tabTrending: 'Tendances',
+    tabTrending: 'Découvrir',
     points: 'Points',
     level: 'Niveau',
     btnFollow: 'Suivre',
@@ -355,9 +367,6 @@ const STRINGS = {
     noVideos: 'Pas encore de vidéos',
     followHint: 'Suis des créateurs dans « Pour toi » pour voir leurs vidéos ici.',
     tagline: 'Ton monde. Tes moments.',
-    guestBrowse: 'Continuer en invité',
-    guestNeedAccount: 'Créez un compte ou connectez-vous pour utiliser cette fonction.',
-    guestSignIn: 'Connexion / Inscription',
     login: 'Se connecter',
     register: "S'inscrire",
     email: 'E-mail',
@@ -375,14 +384,31 @@ const STRINGS = {
     usernameTaken: "Ce nom d'utilisateur est déjà pris.",
     confirmEmail: 'Vérifie ton e-mail pour confirmer ton compte, puis connecte-toi.',
     errGeneric: "Une erreur s'est produite. Réessaie.",
-    goLive: 'Passer en direct',
-    liveTitlePlaceholder: 'Titre du direct (facultatif)',
-    liveNow: 'En direct maintenant',
-    noLives: "Personne n'est en direct pour le moment.",
-    endLive: 'Terminer',
-    livePerm: "L'autorisation caméra et micro est requise.",
-    liveEnded: 'Ce direct est terminé.',
-    liveMsgPlaceholder: 'Dis quelque chose...',
+    navDiscover: 'Découvrir',
+    navCreate: 'Créer',
+    navRanking: 'Classement',
+    roomsTitle: 'Salons de Chat',
+    roomsSub: 'Rejoignez des salons du monde entier',
+    roomGeneral: 'Salons Généraux',
+    roomVoice: 'Salons Vocaux',
+    roomVideo: 'Salons Vidéo',
+    roomPrivate: 'Salons Privés',
+    createRoom: 'Créer un Salon',
+    rewardsTitle: 'Récompenses',
+    rewardsSub: 'Gagnez des points et des cadeaux',
+    myPoints: 'Mes Points',
+    seeMore: 'Voir Plus',
+    adsTitle: 'Publicités',
+    adsSub: 'Découvrez nos partenaires',
+    adsBanner: 'Annoncez avec nous !',
+    adsSoon: 'La plateforme publicitaire arrive bientôt.',
+    soon: 'Bientôt',
+    soonText: "Cette fonctionnalité n'est pas encore disponible.",
+    pointsRule: "1 point par J'aime reçu, 2 par commentaire, 5 par vidéo publiée.",
+    giftsSoon: 'Les cadeaux et badges arrivent bientôt.',
+    rankingTitle: 'Classement',
+    rankingSub: 'Meilleurs créateurs',
+    noRanking: 'Pas encore de classement.',
     messagePlaceholder: 'Écris un message...',
     messageBtn: 'Message',
     noChats: "Aucune conversation. Ouvre un profil et touche Message.",
@@ -454,63 +480,18 @@ const REASONS = [
 
 const NAV = [
   ['Home', '🏠', 'navHome'],
-  ['Friends', '👥', 'navFriends'],
-  ['Follow', '➕', 'navFollow'],
-  ['Live', '📡', 'navLive'],
-  ['Chat', '💬', 'navChat'],
+  ['Follow', '🧭', 'navDiscover'],
+  ['Create', '＋', 'navCreate'],
+  ['Ranking', '🏆', 'navRanking'],
   ['Profile', '👤', 'navProfile'],
 ];
 
-function StageView({ mirror }) {
-  const tracks = useTracks([Track.Source.Camera]);
-  const ref = tracks.find((tr) => isTrackReference(tr));
-  return (
-    <View style={styles.stage}>
-      {ref ? (
-        <VideoTrack
-          trackRef={ref}
-          style={StyleSheet.absoluteFill}
-          objectFit="cover"
-          mirror={mirror}
-        />
-      ) : (
-        <ActivityIndicator color="#A855F7" size="large" />
-      )}
-    </View>
-  );
-}
-
-function LiveStage({ serverUrl, token, publish }) {
-  useEffect(() => {
-    (async () => {
-      try {
-        await AudioSession.startAudioSession();
-      } catch (e) {
-        // audio session not started
-      }
-    })();
-    return () => {
-      try {
-        AudioSession.stopAudioSession();
-      } catch (e) {
-        // ignore
-      }
-    };
-  }, []);
-
-  return (
-    <LiveKitRoom
-      serverUrl={serverUrl}
-      token={token}
-      connect={true}
-      audio={publish}
-      video={publish}
-      options={{ adaptiveStream: { pixelDensity: 'screen' } }}
-    >
-      <StageView mirror={publish} />
-    </LiveKitRoom>
-  );
-}
+const ROOMS = [
+  ['roomGeneral', '🌐', ['#7C3AED', '#4C1D95']],
+  ['roomVoice', '🎙️', ['#2563EB', '#1E3A8A']],
+  ['roomVideo', '🎥', ['#DB2777', '#9D174D']],
+  ['roomPrivate', '👑', ['#F59E0B', '#B45309']],
+];
 
 function VideoPlayer({ url, active }) {
   const player = useVideoPlayer(url, (p) => {
@@ -535,7 +516,7 @@ function VideoPlayer({ url, active }) {
   );
 }
 
-function AuthScreen({ t, lang, changeLang, onSession, onGuest }) {
+function AuthScreen({ t, lang, changeLang, onSession }) {
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
@@ -709,12 +690,6 @@ function AuthScreen({ t, lang, changeLang, onSession, onGuest }) {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={onGuest} style={{ marginTop: 18, padding: 12 }}>
-          <Text style={[styles.authSwitch, { color: '#A855F7', fontWeight: 'bold' }]}>
-            {t('guestBrowse')}
-          </Text>
-        </TouchableOpacity>
-
         <View style={[styles.langRow, { justifyContent: 'center', marginTop: 30 }]}>
           {[
             ['fr', 'Français'],
@@ -743,7 +718,6 @@ function AppContent() {
   const [myLikes, setMyLikes] = useState({});
   const [stats, setStats] = useState({});
   const [session, setSession] = useState(null);
-  const [isGuest, setIsGuest] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const [people, setPeople] = useState([]);
   const [blocked, setBlocked] = useState({});
@@ -756,6 +730,8 @@ function AppContent() {
   const [reportBusy, setReportBusy] = useState(false);
   const [reportDone, setReportDone] = useState(false);
   const [banned, setBanned] = useState(false);
+  const [hubView, setHubView] = useState('home');
+  const [board, setBoard] = useState([]);
   const [names, setNames] = useState({});
   const [conversations, setConversations] = useState([]);
   const [chatWith, setChatWith] = useState(null);
@@ -764,13 +740,6 @@ function AppContent() {
   const [chatSending, setChatSending] = useState(false);
   const [chatError, setChatError] = useState('');
   const chatScrollRef = useRef(null);
-  const [lives, setLives] = useState([]);
-  const [liveSession, setLiveSession] = useState(null);
-  const [liveTitle, setLiveTitle] = useState('');
-  const [liveBusy, setLiveBusy] = useState(false);
-  const [liveError, setLiveError] = useState('');
-  const [liveMsgs, setLiveMsgs] = useState([]);
-  const [liveText, setLiveText] = useState('');
   const [pageHeight, setPageHeight] = useState(height - 85);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [remote, setRemote] = useState([]);
@@ -791,7 +760,6 @@ function AppContent() {
   const myName = (me && me.user_metadata && me.user_metadata.username) || 'user';
 
   const saveSession = async (sess) => {
-    setIsGuest(false);
     currentToken = sess.access_token;
     setSession(sess);
     try {
@@ -802,7 +770,6 @@ function AppContent() {
   };
 
   const logout = async () => {
-    setIsGuest(false);
     try {
       if (currentToken) await authFetch('/logout', null, currentToken);
     } catch (e) {
@@ -906,10 +873,8 @@ function AppContent() {
       }
       setAuthReady(true);
     })();
-    if (!OFFLINE_DEMO_MODE) {
-      loadVideos();
-      loadStats();
-    }
+    loadVideos();
+    loadStats();
   }, [loadVideos, loadStats]);
 
   useEffect(() => {
@@ -929,13 +894,7 @@ function AppContent() {
   }, [myId]);
 
   const loadSocial = useCallback(async () => {
-    if (!myId) {
-      setPeople(demoVideos.map((video, index) => ({
-        id: 'demo_creator_' + index,
-        username: video.user,
-      })));
-      return;
-    }
+    if (!myId) return;
     try {
       const [f, b, pe] = await Promise.all([
         api('follows?select=followed_id&follower_id=eq.' + myId).then((r) => r.json()),
@@ -991,12 +950,6 @@ function AppContent() {
   const changeLang = (code) => {
     setLang(code);
     AsyncStorage.setItem('vyra_lang', code).catch(() => {});
-  };
-
-  const requireAccount = () => {
-    if (myId) return true;
-    Alert.alert('VYRA', t('guestNeedAccount'));
-    return false;
   };
 
   const switchFeed = (feed) => {
@@ -1071,7 +1024,6 @@ function AppContent() {
   };
 
   const openChat = (userId, name) => {
-    if (!requireAccount()) return;
     if (!userId || userId === myId) return;
     setNames((prev) => ({ ...prev, [userId]: name || prev[userId] }));
     setChatWith({ id: userId, username: name || nameOf(userId) });
@@ -1082,7 +1034,6 @@ function AppContent() {
   };
 
   const sendMessage = async () => {
-    if (!requireAccount()) return;
     const text = chatText.trim();
     if (!text || !chatWith || !myId || chatSending) return;
     const token = await ensureToken();
@@ -1127,173 +1078,50 @@ function AppContent() {
     return () => clearInterval(timer);
   }, [chatWith]);
 
-  const loadLives = useCallback(async () => {
+  const soon = () => Alert.alert(t('soon'), t('soonText'));
+
+  const openHub = (view) => {
+    setHubView(view);
+    setActiveTab('Hub');
+  };
+
+  const loadBoard = useCallback(async () => {
     try {
-      const since = new Date(Date.now() - 12 * 3600 * 1000).toISOString();
-      const res = await api(
-        'lives?select=*&ended_at=is.null&started_at=gt.' +
-          encodeURIComponent(since) +
-          '&order=started_at.desc&limit=30'
-      );
-      const rows = await res.json();
-      if (Array.isArray(rows)) setLives(rows);
+      const [vr, sr] = await Promise.all([
+        api('videos?select=id,user_id,username&user_id=not.is.null&limit=1000').then((r) => r.json()),
+        api('video_stats?select=*').then((r) => r.json()),
+      ]);
+      if (!Array.isArray(vr) || !Array.isArray(sr)) return;
+      const st = {};
+      sr.forEach((r) => {
+        st[String(r.video_id)] = {
+          likes: Number(r.likes) || 0,
+          comments: Number(r.comments) || 0,
+        };
+      });
+      const agg = {};
+      vr.forEach((v) => {
+        const sv = st['r' + v.id] || { likes: 0, comments: 0 };
+        if (!agg[v.user_id]) {
+          agg[v.user_id] = { id: v.user_id, username: v.username, posts: 0, likes: 0, comments: 0 };
+        }
+        agg[v.user_id].posts += 1;
+        agg[v.user_id].likes += sv.likes;
+        agg[v.user_id].comments += sv.comments;
+      });
+      const list = Object.values(agg)
+        .map((a) => ({ ...a, points: a.likes + 2 * a.comments + 5 * a.posts }))
+        .sort((x, y) => y.points - x.points);
+      setBoard(list);
     } catch (e) {
-      // offline
+      // keep old board
     }
   }, []);
 
-  const getLiveToken = async (room, publish) => {
-    const jwt = await ensureToken();
-    if (!jwt) throw new Error('login required');
-    const res = await api('rpc/livekit_token', {
-      method: 'POST',
-      body: JSON.stringify({ p_room: room, p_publish: publish, p_name: myName }),
-    });
-    const data = await res.json().catch(() => null);
-    if (!res.ok || typeof data !== 'string') {
-      throw new Error((data && (data.message || data.error)) || 'HTTP ' + res.status);
-    }
-    return data;
-  };
-
-  const startLive = async () => {
-    if (!requireAccount()) return;
-    if (!myId || liveBusy) return;
-    setLiveBusy(true);
-    setLiveError('');
-    try {
-      if (Platform.OS === 'android') {
-        const r = await PermissionsAndroid.requestMultiple([
-          PermissionsAndroid.PERMISSIONS.CAMERA,
-          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-        ]);
-        if (
-          r[PermissionsAndroid.PERMISSIONS.CAMERA] !== 'granted' ||
-          r[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] !== 'granted'
-        ) {
-          throw new Error(t('livePerm'));
-        }
-      }
-      const room = 'live-' + myId;
-      await api('lives?host_id=eq.' + myId + '&ended_at=is.null', {
-        method: 'PATCH',
-        headers: { Prefer: 'return=minimal' },
-        body: JSON.stringify({ ended_at: new Date().toISOString() }),
-      });
-      const ins = await api('lives', {
-        method: 'POST',
-        headers: { Prefer: 'return=representation' },
-        body: JSON.stringify({
-          host_id: myId,
-          host_name: myName,
-          title: liveTitle.trim() || null,
-          room: room,
-        }),
-      });
-      const rows = await ins.json();
-      if (!Array.isArray(rows) || !rows[0]) throw new Error(t('errGeneric'));
-      const lkToken = await getLiveToken(room, true);
-      setLiveMsgs([]);
-      setLiveText('');
-      setLiveSession({ live: rows[0], token: lkToken, publish: true });
-    } catch (e) {
-      setLiveError(String((e && e.message) || e).slice(0, 200));
-    }
-    setLiveBusy(false);
-  };
-
-  const joinLive = async (live) => {
-    if (!requireAccount()) return;
-    if (liveBusy) return;
-    setLiveBusy(true);
-    setLiveError('');
-    try {
-      const lkToken = await getLiveToken(live.room, false);
-      setLiveMsgs([]);
-      setLiveText('');
-      setLiveSession({ live: live, token: lkToken, publish: false });
-    } catch (e) {
-      setLiveError(String((e && e.message) || e).slice(0, 200));
-    }
-    setLiveBusy(false);
-  };
-
-  const leaveLive = async () => {
-    const sess = liveSession;
-    setLiveSession(null);
-    if (sess && sess.publish) {
-      try {
-        await api('lives?id=eq.' + sess.live.id, {
-          method: 'PATCH',
-          headers: { Prefer: 'return=minimal' },
-          body: JSON.stringify({ ended_at: new Date().toISOString() }),
-        });
-      } catch (e) {
-        // will expire by itself
-      }
-    }
-    loadLives();
-  };
-
-  const loadLiveMsgs = async () => {
-    if (!liveSession) return;
-    try {
-      const res = await api(
-        'live_messages?select=*&live_id=eq.' + liveSession.live.id +
-          '&order=created_at.desc&limit=40'
-      );
-      const rows = await res.json();
-      if (Array.isArray(rows)) setLiveMsgs(rows.reverse());
-      if (!liveSession.publish) {
-        const lr = await api(
-          'lives?select=ended_at&id=eq.' + liveSession.live.id
-        ).then((r) => r.json());
-        if (Array.isArray(lr) && lr[0] && lr[0].ended_at) {
-          setLiveSession(null);
-          setLiveError(t('liveEnded'));
-          loadLives();
-        }
-      }
-    } catch (e) {
-      // offline
-    }
-  };
-
-  const sendLiveMsg = async () => {
-    if (!requireAccount()) return;
-    const text = liveText.trim();
-    if (!text || !liveSession || !myId) return;
-    setLiveText('');
-    try {
-      await api('live_messages', {
-        method: 'POST',
-        headers: { Prefer: 'return=minimal' },
-        body: JSON.stringify({
-          live_id: liveSession.live.id,
-          user_id: myId,
-          username: myName,
-          content: text,
-        }),
-      });
-      loadLiveMsgs();
-    } catch (e) {
-      // not sent
-    }
-  };
-
   useEffect(() => {
-    if (activeTab !== 'Live' || !myId) return;
-    loadLives();
-    const timer = setInterval(loadLives, 8000);
-    return () => clearInterval(timer);
-  }, [activeTab, myId, loadLives]);
-
-  useEffect(() => {
-    if (!liveSession) return;
-    loadLiveMsgs();
-    const timer = setInterval(loadLiveMsgs, 2500);
-    return () => clearInterval(timer);
-  }, [liveSession]);
+    if (!myId) return;
+    if (['Home', 'Hub', 'Ranking', 'Profile'].includes(activeTab)) loadBoard();
+  }, [activeTab, myId, loadBoard]);
 
   const loadCounts = async (userId) => {
     try {
@@ -1325,7 +1153,6 @@ function AppContent() {
   };
 
   const toggleFollow = async (userId) => {
-    if (!requireAccount()) return;
     if (!userId || !myId || userId === myId) return;
     const token = await ensureToken();
     if (!token) return;
@@ -1404,7 +1231,6 @@ function AppContent() {
   };
 
   const openReport = (type, id) => {
-    if (!requireAccount()) return;
     setMenuVideo(null);
     setReportTarget({ type: type, id: String(id) });
     setReportReason('');
@@ -1437,7 +1263,6 @@ function AppContent() {
   };
 
   const toggleLike = async (video) => {
-    if (!requireAccount()) return;
     const token = await ensureToken();
     if (!token || !myId) return;
     const id = video.id;
@@ -1481,7 +1306,6 @@ function AppContent() {
   };
 
   const openComments = async (video) => {
-    if (!requireAccount()) return;
     setCommentsFor(video.id);
     setComments([]);
     setCommentText('');
@@ -1501,7 +1325,6 @@ function AppContent() {
   };
 
   const sendComment = async () => {
-    if (!requireAccount()) return;
     const text = commentText.trim();
     if (!text || !commentsFor) return;
     const vid = commentsFor;
@@ -1533,7 +1356,6 @@ function AppContent() {
   };
 
   const pickVideo = async () => {
-    if (!requireAccount()) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['videos'],
       quality: 1,
@@ -1601,49 +1423,59 @@ function AppContent() {
   const renderHeader = () => (
     <View style={styles.header} pointerEvents="box-none">
       <View style={styles.headerRow}>
-        <Text style={styles.logo}>VYRA</Text>
-        {isGuest ? (
-          <TouchableOpacity onPress={() => setIsGuest(false)} style={{ marginLeft: 8 }}>
-            <Text style={{ color: '#C084FC', fontSize: 11, fontWeight: 'bold' }}>{t('guestSignIn')}</Text>
+        <View style={styles.logoRow}>
+          <Text style={styles.logoV}>V</Text>
+          <Text style={styles.logoRest}>YRA</Text>
+        </View>
+
+        <View style={styles.headerIcons}>
+          <TouchableOpacity onPress={() => setActiveTab('Follow')}>
+            <Text style={styles.headerIcon}>🔍</Text>
           </TouchableOpacity>
-        ) : null}
-        <TouchableOpacity onPress={() => setActiveTab('Follow') }>
-          <Text style={styles.headerIcon}>🔍</Text>
-        </TouchableOpacity>
-        <View style={styles.pill}>
-          <Text style={styles.pillIcon}>🏆</Text>
-          <View>
-            <Text style={styles.pillNum}>0</Text>
-            <Text style={styles.pillLabel}>{t('points')}</Text>
-          </View>
+          <TouchableOpacity onPress={() => setActiveTab('Chat')}>
+            <Text style={styles.headerIcon}>🔔</Text>
+            {totalUnread > 0 ? (
+              <View style={styles.bellBadge}>
+                <Text style={styles.badgeText}>{totalUnread > 9 ? '9+' : totalUnread}</Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerAvatar}
+            onPress={() => setActiveTab('Profile')}
+          >
+            <Text style={styles.avatarLetter}>{myName.charAt(0).toUpperCase()}</Text>
+          </TouchableOpacity>
         </View>
-        <View style={styles.pill}>
-          <Text style={styles.pillIcon}>🛡️</Text>
-          <View>
-            <Text style={styles.pillLabel}>{t('level')}</Text>
-            <Text style={styles.pillNum}>1</Text>
-          </View>
-        </View>
-        <Text style={styles.headerIcon}>🎁</Text>
       </View>
 
       <View style={styles.tabsRow}>
         {[
-          ['forYou', '🏠 ', 'tabForYou'],
-          ['following', '', 'tabFollowing'],
-          ['trending', '🔥 ', 'tabTrending'],
-        ].map(([key, icon, label]) => (
-          <TouchableOpacity
-            key={key}
-            style={[styles.tabPill, activeFeed === key && styles.tabPillActive]}
-            onPress={() => switchFeed(key)}
-          >
-            <Text style={styles.tabPillText}>
-              {icon}
-              {t(label)}
-            </Text>
-          </TouchableOpacity>
-        ))}
+          ['forYou', 'tabForYou'],
+          ['following', 'tabFollowing'],
+          ['trending', 'tabTrending'],
+        ].map(([key, label]) =>
+          activeFeed === key ? (
+            <TouchableOpacity key={key} onPress={() => switchFeed(key)}>
+              <LinearGradient
+                colors={['#7C3AED', '#C026D3']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.tabPill}
+              >
+                <Text style={styles.tabPillText}>{t(label)}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              key={key}
+              style={[styles.tabPill, styles.tabPillOff]}
+              onPress={() => switchFeed(key)}
+            >
+              <Text style={styles.tabPillText}>{t(label)}</Text>
+            </TouchableOpacity>
+          )
+        )}
       </View>
     </View>
   );
@@ -1735,15 +1567,34 @@ function AppContent() {
               <Text style={styles.actionIcon}>⋯</Text>
             </TouchableOpacity>
           )}
+
+          <View style={styles.railDivider} />
+
+          {[
+            ['📡', 'LIVE', () => setActiveTab('Live'), '#FF2D55'],
+            ['💬', 'CHAT', () => setActiveTab('Chat'), '#7DD3FC'],
+            ['👥', 'ROOMS', () => openHub('rooms'), '#86EFAC'],
+            ['📣', 'ADS', () => openHub('ads'), '#FCD34D'],
+            ['🏆', 'REWARDS', () => openHub('rewards'), '#FBBF24'],
+          ].map(([icon, label, fn, color]) => (
+            <TouchableOpacity key={label} style={styles.shortcut} onPress={fn}>
+              <Text style={styles.shortcutIcon}>{icon}</Text>
+              <Text style={[styles.shortcutText, { color: color }]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
     );
   };
 
+  const meRow = board.find((b) => b.id === myId);
+  const myPoints = meRow ? meRow.points : 0;
+  const myLevel = Math.floor(myPoints / 50) + 1;
+  const levelProgress = (myPoints % 50) / 50;
+
   const totalUnread = conversations
     .filter((c) => !blocked[c.id])
     .reduce((sum, c) => sum + c.unread, 0);
-  const visibleLives = lives.filter((l) => !blocked[l.host_id]);
   const followedPeople = people.filter((pe) => following[pe.id]);
   const discoverPeople = people.filter((pe) => pe.id !== myId && !blocked[pe.id]);
 
@@ -1782,14 +1633,13 @@ function AppContent() {
     );
   }
 
-  if (!session && !isGuest) {
+  if (!session) {
     return (
       <AuthScreen
         t={t}
         lang={lang}
         changeLang={changeLang}
         onSession={saveSession}
-        onGuest={() => setIsGuest(true)}
       />
     );
   }
@@ -1924,62 +1774,222 @@ function AppContent() {
                 <Text style={styles.authSwitch}>‹ {t('navHome')}</Text>
               </TouchableOpacity>
             </View>
-          ) : activeTab === 'Live' ? (
-            <View style={{ marginTop: 30 }}>
-              <Text style={styles.liveHead}>{t('liveTitle')}</Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder={t('liveTitlePlaceholder')}
-                placeholderTextColor="#777777"
-                value={liveTitle}
-                onChangeText={setLiveTitle}
-                maxLength={80}
-              />
-
-              <TouchableOpacity
-                style={[styles.goLiveBtn, { opacity: liveBusy ? 0.6 : 1 }]}
-                onPress={startLive}
-                disabled={liveBusy}
-              >
-                {liveBusy ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.primaryBtnText}>📡 {t('goLive')}</Text>
-                )}
-              </TouchableOpacity>
-
-              {liveError ? <Text style={styles.authError}>{liveError}</Text> : null}
-
-              <Text style={[styles.screenSub, { marginTop: 28 }]}>{t('liveNow')}</Text>
-              {visibleLives.length === 0 ? (
-                <Text style={{ color: '#777777', marginTop: 10 }}>{t('noLives')}</Text>
-              ) : (
-                visibleLives.map((l) => (
-                  <TouchableOpacity
-                    key={l.id}
-                    style={styles.creatorRow}
-                    onPress={() => joinLive(l)}
+          ) : activeTab === 'Hub' ? (
+            hubView === 'rooms' ? (
+              <View style={{ marginTop: 20 }}>
+                <TouchableOpacity style={styles.backRow} onPress={() => setHubView('home')}>
+                  <Text style={styles.backArrow}>‹</Text>
+                  <Text style={styles.screenTitle}>{t('roomsTitle')}</Text>
+                </TouchableOpacity>
+                <Text style={styles.screenSub}>{t('roomsSub')}</Text>
+                {ROOMS.map(([key, icon, colors]) => (
+                  <TouchableOpacity key={key} onPress={soon} style={{ marginTop: 14 }}>
+                    <LinearGradient
+                      colors={colors}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.roomBig}
+                    >
+                      <Text style={styles.roomBigIcon}>{icon}</Text>
+                      <Text style={styles.roomBigName}>{t(key)}</Text>
+                      <View style={styles.soonTag}>
+                        <Text style={styles.soonText}>{t('soon')}</Text>
+                      </View>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity onPress={soon} style={{ marginTop: 16 }}>
+                  <LinearGradient
+                    colors={['#7C3AED', '#C026D3']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.createRoom}
                   >
-                    <View style={styles.smallAvatar}>
-                      <Text style={styles.avatarLetter}>
-                        {String(l.host_name || '?').charAt(0).toUpperCase()}
-                      </Text>
+                    <Text style={styles.createRoomText}>＋ {t('createRoom')}</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            ) : hubView === 'rewards' ? (
+              <View style={{ marginTop: 20 }}>
+                <TouchableOpacity style={styles.backRow} onPress={() => setHubView('home')}>
+                  <Text style={styles.backArrow}>‹</Text>
+                  <Text style={styles.screenTitle}>{t('rewardsTitle')}</Text>
+                </TouchableOpacity>
+                <LinearGradient
+                  colors={['#4C1D95', '#7C3AED']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.pointsCard}
+                >
+                  <Text style={styles.pointsLabel}>{t('myPoints')}</Text>
+                  <Text style={styles.pointsBig}>⭐ {formatCount(myPoints)}</Text>
+                  <Text style={styles.pointsLevel}>
+                    {t('level')} {myLevel}
+                  </Text>
+                  <View style={styles.progressBg}>
+                    <View style={[styles.progressFill, { width: Math.round(levelProgress * 100) + '%' }]} />
+                  </View>
+                </LinearGradient>
+                <Text style={[styles.screenSub, { marginTop: 18 }]}>{t('pointsRule')}</Text>
+                <Text style={{ color: '#777777', marginTop: 12 }}>{t('giftsSoon')}</Text>
+              </View>
+            ) : hubView === 'ads' ? (
+              <View style={{ marginTop: 20 }}>
+                <TouchableOpacity style={styles.backRow} onPress={() => setHubView('home')}>
+                  <Text style={styles.backArrow}>‹</Text>
+                  <Text style={styles.screenTitle}>{t('adsTitle')}</Text>
+                </TouchableOpacity>
+                <LinearGradient
+                  colors={['#1D4ED8', '#7C3AED']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.adsBanner}
+                >
+                  <Text style={styles.adsLogo}>VYRA ADS</Text>
+                  <Text style={styles.adsText}>{t('adsBanner')}</Text>
+                </LinearGradient>
+                <Text style={[styles.screenSub, { marginTop: 18 }]}>{t('adsSoon')}</Text>
+              </View>
+            ) : (
+              <View style={{ marginTop: 20 }}>
+                <View style={styles.hubCard}>
+                  <TouchableOpacity style={styles.hubHead} onPress={() => setHubView('rooms')}>
+                    <Text style={styles.hubIcon}>💬</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.hubTitle}>{t('roomsTitle')}</Text>
+                      <Text style={styles.hubSub}>{t('roomsSub')}</Text>
                     </View>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={styles.convName}>@{l.host_name}</Text>
-                      {l.title ? (
-                        <Text numberOfLines={1} style={styles.chatPreview}>
-                          {l.title}
-                        </Text>
-                      ) : null}
-                    </View>
-                    <View style={styles.liveChip}>
-                      <Text style={styles.liveChipText}>LIVE</Text>
+                    <View style={styles.chev}>
+                      <Text style={styles.chevText}>›</Text>
                     </View>
                   </TouchableOpacity>
-                ))
+
+                  <View style={styles.roomGrid}>
+                    {ROOMS.map(([key, icon, colors]) => (
+                      <TouchableOpacity key={key} style={styles.roomTileWrap} onPress={soon}>
+                        <LinearGradient
+                          colors={colors}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.roomTile}
+                        >
+                          <Text style={styles.roomIcon}>{icon}</Text>
+                          <Text style={styles.roomName}>{t(key)}</Text>
+                          <View style={styles.soonTag}>
+                            <Text style={styles.soonText}>{t('soon')}</Text>
+                          </View>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  <TouchableOpacity onPress={soon}>
+                    <LinearGradient
+                      colors={['#7C3AED', '#C026D3']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.createRoom}
+                    >
+                      <Text style={styles.createRoomText}>＋ {t('createRoom')}</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.hubCard}>
+                  <TouchableOpacity style={styles.hubHead} onPress={() => setHubView('rewards')}>
+                    <Text style={styles.hubIcon}>🎁</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.hubTitle}>{t('rewardsTitle')}</Text>
+                      <Text style={styles.hubSub}>{t('rewardsSub')}</Text>
+                    </View>
+                    <View style={styles.chev}>
+                      <Text style={styles.chevText}>›</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <LinearGradient
+                    colors={['#2E1065', '#6D28D9']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.pointsRow}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.pointsLabel}>{t('myPoints')}</Text>
+                      <Text style={styles.pointsMid}>⭐ {formatCount(myPoints)}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.seeMoreBtn}
+                      onPress={() => setHubView('rewards')}
+                    >
+                      <Text style={styles.seeMoreText}>{t('seeMore')} ›</Text>
+                    </TouchableOpacity>
+                  </LinearGradient>
+                </View>
+
+                <View style={styles.hubCard}>
+                  <TouchableOpacity style={styles.hubHead} onPress={() => setHubView('ads')}>
+                    <Text style={styles.hubIcon}>📣</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.hubTitle}>{t('adsTitle')}</Text>
+                      <Text style={styles.hubSub}>{t('adsSub')}</Text>
+                    </View>
+                    <View style={styles.chev}>
+                      <Text style={styles.chevText}>›</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity onPress={() => setHubView('ads')}>
+                    <LinearGradient
+                      colors={['#1D4ED8', '#7C3AED']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.adsBanner}
+                    >
+                      <Text style={styles.adsLogo}>VYRA ADS</Text>
+                      <Text style={styles.adsText}>{t('adsBanner')}</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )
+          ) : activeTab === 'Ranking' ? (
+            <View style={{ marginTop: 20 }}>
+              <Text style={styles.screenTitle}>🏆 {t('rankingTitle')}</Text>
+              <Text style={styles.screenSub}>{t('rankingSub')}</Text>
+              {board.filter((b) => !blocked[b.id]).length === 0 ? (
+                <Text style={{ color: '#777777', marginTop: 16 }}>{t('noRanking')}</Text>
+              ) : (
+                board
+                  .filter((b) => !blocked[b.id])
+                  .slice(0, 30)
+                  .map((b, i) => (
+                    <TouchableOpacity
+                      key={b.id}
+                      style={[styles.creatorRow, b.id === myId && styles.meRow]}
+                      onPress={() => openUser(b.id, b.username)}
+                    >
+                      <Text style={styles.rankNum}>
+                        {i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}
+                      </Text>
+                      <View style={styles.smallAvatar}>
+                        <Text style={styles.avatarLetter}>
+                          {String(b.username).charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                      <Text style={styles.creatorName}>@{b.username}</Text>
+                      <Text style={styles.rankPts}>
+                        {formatCount(b.points)} {t('points')}
+                      </Text>
+                    </TouchableOpacity>
+                  ))
               )}
+            </View>
+          ) : activeTab === 'Live' ? (
+            <View style={{ alignItems: 'center', marginTop: 70 }}>
+              <Text style={styles.liveBig}>📡</Text>
+              <Text style={styles.liveTitle}>{t('liveTitle')}</Text>
+              <Text style={styles.liveSoon}>{t('liveSoon')}</Text>
+              <Text style={styles.liveInfo}>{t('liveInfo')}</Text>
             </View>
           ) : activeTab === 'Chat' ? (
             <View style={{ marginTop: 30 }}>
@@ -2103,6 +2113,18 @@ function AppContent() {
                 <Text style={styles.primaryBtnText}>{t('publishVideo')}</Text>
               </TouchableOpacity>
 
+              <View style={styles.quickRow}>
+                <TouchableOpacity style={styles.quickBtn} onPress={() => setActiveTab('Friends')}>
+                  <Text style={styles.quickText}>👥 {t('friendsTitle')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.quickBtn} onPress={() => setActiveTab('Chat')}>
+                  <Text style={styles.quickText}>💬 Chat</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.quickBtn} onPress={() => openHub('home')}>
+                  <Text style={styles.quickText}>🎁 Hub</Text>
+                </TouchableOpacity>
+              </View>
+
               <Text style={{ color: 'white', marginTop: 30 }}>{t('myVideos')}</Text>
               <Text style={{ color: '#999999', marginTop: 10 }}>
                 {remote.length > 0 ? t('videosInFeed') : t('videosWillAppear')}
@@ -2214,67 +2236,6 @@ function AppContent() {
                 <Text style={styles.sendBtnText}>{t('send')}</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      <Modal
-        visible={liveSession !== null}
-        animationType="slide"
-        onRequestClose={leaveLive}
-      >
-        <KeyboardAvoidingView
-          style={[styles.container, { paddingTop: insets.top }]}
-          behavior="padding"
-        >
-          <View style={{ flex: 1 }}>
-            {liveSession ? (
-              <LiveStage
-                serverUrl={LIVEKIT_URL}
-                token={liveSession.token}
-                publish={liveSession.publish}
-              />
-            ) : null}
-
-            <View style={styles.liveTop} pointerEvents="box-none">
-              <View style={styles.liveChip}>
-                <Text style={styles.liveChipText}>LIVE</Text>
-              </View>
-              <Text style={styles.liveHost}>
-                @{liveSession ? liveSession.live.host_name : ''}
-              </Text>
-              <TouchableOpacity style={styles.liveCloseBtn} onPress={leaveLive}>
-                <Text style={styles.liveClose}>
-                  {liveSession && liveSession.publish ? t('endLive') : '✕'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.liveChat} pointerEvents="box-none">
-              {liveMsgs
-                .filter((m) => !blocked[m.user_id])
-                .slice(-6)
-                .map((m) => (
-                  <Text key={m.id} style={styles.liveMsg}>
-                    <Text style={{ fontWeight: 'bold', color: '#D8B4FE' }}>@{m.username} </Text>
-                    {m.content}
-                  </Text>
-                ))}
-            </View>
-          </View>
-
-          <View style={[styles.chatInputRow, { paddingBottom: insets.bottom + 10 }]}>
-            <TextInput
-              style={styles.commentInput}
-              placeholder={t('liveMsgPlaceholder')}
-              placeholderTextColor="#777777"
-              value={liveText}
-              onChangeText={setLiveText}
-              maxLength={200}
-            />
-            <TouchableOpacity style={styles.sendBtn} onPress={sendLiveMsg}>
-              <Text style={styles.sendBtnText}>{t('send')}</Text>
-            </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -2478,46 +2439,33 @@ function AppContent() {
         ]}
       >
         {NAV.map(([key, icon, label]) => {
+          if (key === 'Create') {
+            return (
+              <TouchableOpacity
+                key={key}
+                style={styles.navItem}
+                onPress={() => setActiveTab('Create')}
+              >
+                <LinearGradient
+                  colors={['#7C3AED', '#C026D3']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.navPlus}
+                >
+                  <Text style={styles.navPlusText}>＋</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            );
+          }
           const active = activeTab === key;
-          const isLive = key === 'Live';
           return (
             <TouchableOpacity
               key={key}
               style={styles.navItem}
-              onPress={() => {
-                if (isGuest && !['Home', 'Follow'].includes(key)) {
-                  Alert.alert('VYRA', t('guestNeedAccount'), [
-                    { text: t('cancel'), style: 'cancel' },
-                    { text: t('guestSignIn'), onPress: () => setIsGuest(false) },
-                  ]);
-                  return;
-                }
-                setActiveTab(key);
-              }}
+              onPress={() => setActiveTab(key)}
             >
-              <Text
-                style={[
-                  styles.navIcon,
-                  active && styles.navIconActive,
-                  isLive && styles.liveIcon,
-                ]}
-              >
-                {icon}
-              </Text>
-              {key === 'Chat' && totalUnread > 0 ? (
-                <View style={styles.navBadge}>
-                  <Text style={styles.badgeText}>{totalUnread > 9 ? '9+' : totalUnread}</Text>
-                </View>
-              ) : null}
-              <Text
-                style={[
-                  styles.navText,
-                  active && styles.activeNav,
-                  isLive && styles.liveText,
-                ]}
-              >
-                {t(label)}
-              </Text>
+              <Text style={[styles.navIcon, active && styles.navIconActive]}>{icon}</Text>
+              <Text style={[styles.navText, active && styles.activeNav]}>{t(label)}</Text>
             </TouchableOpacity>
           );
         })}
@@ -2529,7 +2477,7 @@ function AppContent() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#080808',
+    backgroundColor: '#0A0612',
   },
 
   video: {
@@ -2690,9 +2638,9 @@ const styles = StyleSheet.create({
   actions: {
     position: 'absolute',
     right: 10,
-    bottom: 24,
+    bottom: 20,
     alignItems: 'center',
-    gap: 18,
+    gap: 11,
   },
 
   avatarWrap: {
@@ -2741,7 +2689,7 @@ const styles = StyleSheet.create({
 
   actionIcon: {
     color: '#FFFFFF',
-    fontSize: 30,
+    fontSize: 26,
   },
 
   actionText: {
@@ -2752,7 +2700,7 @@ const styles = StyleSheet.create({
   },
 
   bottomBar: {
-    backgroundColor: '#080808',
+    backgroundColor: '#0E0818',
     flexDirection: 'row',
     alignItems: 'center',
     borderTopWidth: 0.5,
@@ -3241,93 +3189,352 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
 
-  stage: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#000000',
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+
+  logoV: {
+    color: '#C026D3',
+    fontSize: 30,
+    fontWeight: '900',
+  },
+
+  logoRest: {
+    color: '#FFFFFF',
+    fontSize: 26,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+
+  headerIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+
+  headerAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#7C3AED',
+    borderWidth: 2,
+    borderColor: '#C026D3',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  liveHead: {
-    color: '#FF2D55',
-    fontSize: 30,
-    fontWeight: '900',
-    letterSpacing: 3,
-  },
-
-  goLiveBtn: {
-    backgroundColor: '#FF2D55',
-    paddingVertical: 15,
-    borderRadius: 12,
+  bellBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -8,
+    backgroundColor: '#F43F9E',
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
     alignItems: 'center',
-    marginTop: 18,
+    justifyContent: 'center',
+    paddingHorizontal: 3,
   },
 
-  liveChip: {
-    backgroundColor: '#FF2D55',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+  tabPillOff: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
 
-  liveChipText: {
+  railDivider: {
+    width: 28,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+  },
+
+  shortcut: {
+    alignItems: 'center',
+  },
+
+  shortcutIcon: {
+    fontSize: 21,
+  },
+
+  shortcutText: {
+    fontSize: 9,
+    fontWeight: '800',
+    marginTop: 1,
+  },
+
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  backArrow: {
     color: '#FFFFFF',
-    fontSize: 11,
+    fontSize: 38,
+    lineHeight: 40,
+  },
+
+  hubCard: {
+    backgroundColor: '#150C26',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#2D1B4E',
+    padding: 14,
+    marginBottom: 16,
+  },
+
+  hubHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+
+  hubIcon: {
+    fontSize: 30,
+  },
+
+  hubTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+
+  hubSub: {
+    color: '#A99BC4',
+    fontSize: 12,
+    marginTop: 2,
+  },
+
+  chev: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#4C1D95',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  chevText: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    lineHeight: 24,
+    fontWeight: 'bold',
+  },
+
+  roomGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+
+  roomTileWrap: {
+    width: '48.5%',
+    marginBottom: 10,
+  },
+
+  roomTile: {
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    minHeight: 112,
+    justifyContent: 'center',
+  },
+
+  roomIcon: {
+    fontSize: 30,
+  },
+
+  roomName: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginTop: 6,
+  },
+
+  soonTag: {
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginTop: 6,
+  },
+
+  soonText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+
+  createRoom: {
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+
+  createRoomText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
+  roomBig: {
+    borderRadius: 16,
+    padding: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+
+  roomBigIcon: {
+    fontSize: 34,
+  },
+
+  roomBigName: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+    flex: 1,
+  },
+
+  pointsRow: {
+    borderRadius: 14,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  pointsLabel: {
+    color: '#D8B4FE',
+    fontSize: 13,
+  },
+
+  pointsMid: {
+    color: '#FDE68A',
+    fontSize: 26,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+
+  seeMoreBtn: {
+    backgroundColor: '#4C1D95',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+
+  seeMoreText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+
+  pointsCard: {
+    borderRadius: 18,
+    padding: 22,
+    marginTop: 14,
+  },
+
+  pointsBig: {
+    color: '#FDE68A',
+    fontSize: 44,
+    fontWeight: '900',
+    marginTop: 6,
+  },
+
+  pointsLevel: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 8,
+  },
+
+  progressBg: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    marginTop: 12,
+    overflow: 'hidden',
+  },
+
+  progressFill: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FDE68A',
+  },
+
+  adsBanner: {
+    borderRadius: 14,
+    padding: 20,
+    marginTop: 10,
+  },
+
+  adsLogo: {
+    color: '#FFFFFF',
+    fontSize: 24,
     fontWeight: '900',
     letterSpacing: 1,
   },
 
-  liveTop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
+  adsText: {
+    color: '#E0E7FF',
+    fontSize: 14,
+    marginTop: 6,
+  },
+
+  navPlus: {
+    width: 62,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
   },
 
-  liveHost: {
+  navPlusText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 26,
     fontWeight: 'bold',
+    lineHeight: 30,
+  },
+
+  rankNum: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+    width: 36,
+    textAlign: 'center',
+  },
+
+  rankPts: {
+    color: '#FDE68A',
+    fontWeight: 'bold',
+  },
+
+  meRow: {
+    borderWidth: 1.5,
+    borderColor: '#C026D3',
+  },
+
+  quickRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 22,
+    alignSelf: 'stretch',
+  },
+
+  quickBtn: {
     flex: 1,
-    marginLeft: 10,
+    backgroundColor: '#1E1233',
+    borderRadius: 12,
+    paddingVertical: 11,
+    alignItems: 'center',
   },
 
-  liveCloseBtn: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-  },
-
-  liveClose: {
+  quickText: {
     color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: 'bold',
-    fontSize: 14,
-  },
-
-  liveChat: {
-    position: 'absolute',
-    left: 12,
-    right: 12,
-    bottom: 10,
-  },
-
-  liveMsg: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-    marginTop: 4,
-    overflow: 'hidden',
   },
 
   primaryBtn: {

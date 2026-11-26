@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "icon": "./icon.png","plugins": ["@livekit/react-native-expo-plugin", "@config-plugins/react-native-webrtc"],
+    "icon": "./icon.png",
     "android": {
       "package": "com.saadi.vyra",
       "adaptiveIcon": {
